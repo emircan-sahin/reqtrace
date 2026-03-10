@@ -1,0 +1,15 @@
+{
+  "name": "reqtrace",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @reqtrace/server --filter @reqtrace/client -r --parallel dev",
+    "dev:server": "pnpm --filter @reqtrace/server dev",
+    "dev:client": "pnpm --filter @reqtrace/client dev",
+    "demo": "pnpm --filter @reqtrace/examples demo",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
