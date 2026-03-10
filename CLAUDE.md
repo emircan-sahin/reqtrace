@@ -1,13 +1,7 @@
 # reqtrace
 
-Outbound HTTP request monitoring library, published as an npm package.
-
-## Project Overview
-
-reqtrace works as an Axios interceptor. It captures every outbound HTTP request
-and pushes it to a self-hosted dashboard via WebSocket. Users install the npm
-package, run their own server instance, integrate the SDK in a few lines, and
-see a live feed in the browser. Fully self-hosted — no cloud dependency.
+Outbound HTTP request monitoring library. Axios interceptor that captures
+requests and pushes them to a self-hosted dashboard via WebSocket.
 
 ## Monorepo Structure
 
@@ -15,73 +9,46 @@ see a live feed in the browser. Fully self-hosted — no cloud dependency.
 /packages/sdk       → npm package (Axios interceptor + WebSocket push)
 /packages/server    → WebSocket + REST API backend (Fastify)
 /packages/client    → Realtime frontend (React + Tailwind)
+/examples           → Demo script for testing
 ```
 
-## Tech Stack
-
-| Package   | Stack                                       |
-|-----------|---------------------------------------------|
-| SDK       | TypeScript, axios (peer dep)                |
-| Server    | Fastify, ws, PostgreSQL, Redis              |
-| Client    | React, Tailwind CSS                         |
+Package-specific details are in `.claude/rules/` (sdk.md, server.md, client.md).
 
 ## Deployment Model
 
-Self-hosted. Each developer runs their own server + client instance.
-No centralized cloud service, no vendor lock-in. Auth/access control is
-optional and can be enabled via server config (planned for later).
-
-## SDK Public API
-
-```ts
-import { reqtrace } from 'reqtrace'
-reqtrace.init({ serverUrl: 'http://localhost:3100' })
-// all axios requests are now automatically logged
-```
-
-## Log Record Schema
-
-Every intercepted request produces a record with:
-`url, method, status, duration_ms, proxy_host, proxy_port, response_size,
-success, timestamp, error_message`
+Fully self-hosted. No cloud dependency, no vendor lock-in.
+Auth/access control is optional (planned for later).
 
 ## Code Conventions
 
-- Language: TypeScript (strict mode) everywhere
+- TypeScript (strict mode) everywhere
 - Package manager: pnpm workspaces
-- Formatting: Prettier (defaults)
-- Linting: ESLint
-- Commit messages: English, concise, imperative mood
 - No default exports — always use named exports
+- No React StrictMode in client
+- Commit messages: English, concise, imperative mood
 
 ## Security Rules (CRITICAL)
 
-This project is fully open-source. Never leak secrets or credentials.
-
 - **NEVER** commit `.env`, `.env.*`, API keys, tokens, or credentials
 - **NEVER** hardcode secrets in source code — always use environment variables
-- **NEVER** log sensitive data (request/response bodies that may contain PII)
-- **NEVER** commit `node_modules/`, `dist/`, or build artifacts
-- **NEVER** commit `.claude/` directory or any AI tool configuration
-- All secret values must come from environment variables
+- **NEVER** commit `node_modules/`, `dist/`, or `.claude/`
 - Use `.env.example` files with placeholder values (no real secrets)
-- Review every file before committing to ensure no data leaks
 
-## Development Workflow
+## Running the Project
 
-1. Work on one package at a time
-2. Verify code compiles before marking done (`npm run build`)
-3. Run tests if they exist (`npm test`)
-4. Keep changes minimal and focused
+```bash
+pnpm dev          # Start server + client in parallel
+pnpm demo         # Run demo script (sends requests every 50ms)
+pnpm build        # Build all packages
+pnpm test         # Run all tests
+```
 
 ## Architecture Decisions
 
-- Self-hosted: no cloud auth layer, no API key validation by default
-- Auth/authorization is optional, configurable via server options (planned)
-- SDK has zero runtime dependencies (axios is peer dep)
-- SDK buffers logs and sends via WebSocket; falls back to HTTP POST
-- SDK connects to user's own server instance (serverUrl)
-- Client connects via WebSocket for realtime updates
-- Stats (daily/hourly) are pre-aggregated in PostgreSQL
-- All request headers (including Authorization) are logged — this is intentional
+- SDK uses ws (not axios) for transport to avoid interceptor loops
+- SDK sends via WebSocket with auto-reconnect and 100-message buffer
+- Server binds to 127.0.0.1 (not 0.0.0.0) to avoid dual-stack issues
+- Server uses in-memory store (max 10,000 entries, FIFO). PostgreSQL planned
+- Client uses @tanstack/react-virtual for 10K+ log rendering
+- All request headers (including Authorization) are logged — intentional,
   since the server is self-hosted and the developer owns the data

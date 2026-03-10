@@ -28,7 +28,7 @@ describe('ReqtraceCore', () => {
       const config = core.getConfig();
       expect(config.enabled).toBe(true);
       expect(config.captureBody).toBe(false);
-      expect(config.maxBodySize).toBe(10240);
+      expect(config.maxBodySize).toBe(51200);
       expect(config.filter('any', 'GET')).toBe(true);
     });
 

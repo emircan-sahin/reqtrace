@@ -22,7 +22,8 @@ Thumbs.db
 *.swo
 
 # AI tools
-.claude/
+.claude/*
+!.claude/rules/
 
 # Logs
 *.log

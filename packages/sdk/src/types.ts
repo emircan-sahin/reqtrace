@@ -7,7 +7,7 @@ export interface ReqtraceConfig {
   projectName?: string;
   /** Capture request/response bodies up to maxBodySize (default: false) */
   captureBody?: boolean;
-  /** Maximum body size in bytes to capture (default: 10240 = 10KB) */
+  /** Maximum body size in bytes to capture (default: 51200 = 50KB) */
   maxBodySize?: number;
   /** Return false to skip logging a request */
   filter?: (url: string, method: string) => boolean;
