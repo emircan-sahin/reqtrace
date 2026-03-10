@@ -29,7 +29,7 @@ export function CompletedEntry({ log }: { log: RequestLog }) {
   const isError = !log.success || (log.status !== null && log.status >= 400);
 
   return (
-    <div className={`group px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors ${isError ? 'bg-red-950/20' : ''}`}>
+    <div className={`group px-4 py-3 border-b border-zinc-800/50 transition-all hover:brightness-125 ${isError ? 'bg-red-950/20' : ''}`}>
       <div className="flex items-center gap-3">
         <span className="text-xs text-zinc-600 font-mono">
           {formatTime(log.timestamp)}
@@ -116,6 +116,8 @@ function ProxyBadge({ host, port }: { host: string; port: number | null }) {
   );
 }
 
+const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3100';
+
 function ActionMenu({ log }: { log: RequestLog }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -130,6 +132,20 @@ function ActionMenu({ log }: { log: RequestLog }) {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
+
+  function resend() {
+    fetch(`${SERVER_URL.replace(/\/+$/, '')}/api/resend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: log.url,
+        method: log.method,
+        headers: log.request_headers,
+        body: log.request_body,
+      }),
+    }).catch(() => {});
+    setOpen(false);
+  }
 
   function copyCurl() {
     const headers = Object.entries(log.request_headers)
@@ -175,6 +191,7 @@ function ActionMenu({ log }: { log: RequestLog }) {
 
       {open && (
         <div className="absolute right-0 top-8 z-50 w-44 bg-zinc-800 border border-zinc-700 rounded-lg shadow-xl py-1">
+          <MenuItem label="Resend" onClick={resend} />
           <MenuItem label="Copy Request" onClick={copyRequest} />
           <MenuItem label="Copy as cURL" onClick={copyCurl} />
           <MenuItem label="Copy Response" onClick={copyResponse} />
