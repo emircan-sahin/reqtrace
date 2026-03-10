@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { ReqtraceCore, AxiosAdapter } from 'reqtrace';
 
-// Point to your self-hosted server
 const core = new ReqtraceCore({
   serverUrl: 'http://localhost:3100',
   captureBody: true,
@@ -10,31 +9,42 @@ const core = new ReqtraceCore({
 const adapter = new AxiosAdapter(axios, core);
 adapter.install();
 
-async function main() {
-  console.log('--- Successful request ---');
-  await axios.get('https://jsonplaceholder.typicode.com/todos/1');
+const urls = [
+  'https://jsonplaceholder.typicode.com/todos/1',
+  'https://jsonplaceholder.typicode.com/posts/1',
+  'https://jsonplaceholder.typicode.com/users/1',
+  'https://jsonplaceholder.typicode.com/comments/1',
+  'https://jsonplaceholder.typicode.com/todos/99999999',
+];
 
-  console.log('\n--- POST request ---');
-  await axios.post('https://jsonplaceholder.typicode.com/posts', {
-    title: 'test',
-    body: 'reqtrace demo',
-  });
+const methods = ['get', 'get', 'get', 'get', 'post'] as const;
 
-  console.log('\n--- Failed request (404) ---');
+let i = 0;
+
+const interval = setInterval(async () => {
+  const idx = i % urls.length;
+  const method = methods[idx];
+  const url = urls[idx];
+
   try {
-    await axios.get('https://jsonplaceholder.typicode.com/todos/99999999');
+    if (method === 'post') {
+      await axios.post(url, { title: 'test', body: `request #${i}` });
+    } else {
+      await axios.get(url);
+    }
   } catch {
-    // error is logged
+    // errors are logged by reqtrace
   }
 
-  // Give WS transport time to flush
-  await new Promise((r) => setTimeout(r, 500));
+  i++;
+}, 50);
 
-  // Cleanup
+process.on('SIGINT', () => {
+  clearInterval(interval);
   adapter.eject();
   core.destroy();
+  console.log(`\nStopped after ${i} requests.`);
+  process.exit(0);
+});
 
-  console.log('\nDone. Check http://localhost:3100/api/logs');
-}
-
-main();
+console.log('Sending requests every 50ms... Press Ctrl+C to stop.');
