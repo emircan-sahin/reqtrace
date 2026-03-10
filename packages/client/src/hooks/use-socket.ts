@@ -1,15 +1,42 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { RequestLog, RequestStart, WsMessage } from '../types';
 
-const MAX_LOGS = 200;
+const PAGE_SIZE = 200;
 const RECONNECT_BASE = 1000;
 const RECONNECT_MAX = 30000;
 
-export function useSocket(serverUrl: string) {
+export function useSocket(serverUrl: string, project: string | null) {
   const [logs, setLogs] = useState<RequestLog[]>([]);
   const [pending, setPending] = useState<Map<string, RequestStart>>(new Map());
   const [connected, setConnected] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [ready, setReady] = useState(false);
+  const loadingRef = useRef(false);
+  const baseUrl = serverUrl.replace(/\/+$/, '');
 
+  // Reset and re-fetch when project changes
+  useEffect(() => {
+    setLogs([]);
+    setPending(new Map());
+    setHasMore(true);
+    setReady(false);
+    loadingRef.current = false;
+
+    const projectParam = project ? `&project=${encodeURIComponent(project)}` : '';
+
+    fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}${projectParam}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) {
+          setLogs([...data.logs].reverse());
+          setHasMore(data.logs.length >= PAGE_SIZE);
+          setReady(true);
+        }
+      })
+      .catch(() => {});
+  }, [baseUrl, project]);
+
+  // WebSocket connection (independent of project filter)
   useEffect(() => {
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -57,19 +84,13 @@ export function useSocket(serverUrl: string) {
               return next;
             });
             const { type: _, ...log } = msg;
-            setLogs((prev) => [...prev, log].slice(-MAX_LOGS));
+            setLogs((prev) => [...prev, log]);
           }
         } catch {
           // ignore malformed messages
         }
       };
     }
-
-    // Load existing logs
-    fetch(`${serverUrl.replace(/\/+$/, '')}/api/logs?limit=${MAX_LOGS}`)
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => { if (data && !disposed) setLogs([...data.logs].reverse()); })
-      .catch(() => {});
 
     connect();
 
@@ -80,10 +101,37 @@ export function useSocket(serverUrl: string) {
     };
   }, [serverUrl]);
 
+  const loadMore = useCallback(async () => {
+    if (loadingRef.current || !hasMore || !ready) return;
+    loadingRef.current = true;
+
+    try {
+      const projectParam = project ? `&project=${encodeURIComponent(project)}` : '';
+      const currentCount = logs.length;
+      const res = await fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}&offset=${currentCount}${projectParam}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      const older: RequestLog[] = [...data.logs].reverse();
+
+      if (older.length === 0) {
+        setHasMore(false);
+        return;
+      }
+
+      setLogs((prev) => [...older, ...prev]);
+      if (older.length < PAGE_SIZE) setHasMore(false);
+    } catch {
+      // ignore
+    } finally {
+      loadingRef.current = false;
+    }
+  }, [baseUrl, project, hasMore, ready, logs.length]);
+
   const clear = useCallback(() => {
     setLogs([]);
     setPending(new Map());
+    setHasMore(false);
   }, []);
 
-  return { logs, pending, connected, clear };
+  return { logs, pending, connected, hasMore, loadMore, clear };
 }
