@@ -26,8 +26,10 @@ export function CompletedEntry({ log }: { log: RequestLog }) {
   const protocol = getProtocol(log.url);
   const hasProxy = log.proxy_host !== null;
 
+  const isError = !log.success || (log.status !== null && log.status >= 400);
+
   return (
-    <div className="group px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors">
+    <div className={`group px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors ${isError ? 'bg-red-950/20' : ''}`}>
       <div className="flex items-center gap-3">
         <span className="text-xs text-zinc-600 font-mono">
           {formatTime(log.timestamp)}
