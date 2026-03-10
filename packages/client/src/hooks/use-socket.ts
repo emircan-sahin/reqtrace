@@ -57,7 +57,7 @@ export function useSocket(serverUrl: string) {
               return next;
             });
             const { type: _, ...log } = msg;
-            setLogs((prev) => [log, ...prev].slice(0, MAX_LOGS));
+            setLogs((prev) => [...prev, log].slice(-MAX_LOGS));
           }
         } catch {
           // ignore malformed messages
@@ -68,7 +68,7 @@ export function useSocket(serverUrl: string) {
     // Load existing logs
     fetch(`${serverUrl.replace(/\/+$/, '')}/api/logs?limit=${MAX_LOGS}`)
       .then((res) => res.ok ? res.json() : null)
-      .then((data) => { if (data && !disposed) setLogs(data.logs); })
+      .then((data) => { if (data && !disposed) setLogs([...data.logs].reverse()); })
       .catch(() => {});
 
     connect();

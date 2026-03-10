@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react';
-import type { Stats } from '../types';
-
-const POLL_INTERVAL = 5000;
+import { useMemo } from 'react';
+import type { RequestLog, Stats } from '../types';
 
 const EMPTY_STATS: Stats = {
   total_requests: 0,
@@ -13,27 +11,43 @@ const EMPTY_STATS: Stats = {
   requests_per_minute: 0,
 };
 
-export function useStats(serverUrl: string) {
-  const [stats, setStats] = useState<Stats>(EMPTY_STATS);
+export function useStats(logs: RequestLog[]): Stats {
+  return useMemo(() => {
+    if (logs.length === 0) return EMPTY_STATS;
 
-  useEffect(() => {
-    const url = `${serverUrl.replace(/\/+$/, '')}/api/stats`;
+    let successCount = 0;
+    let errorCount = 0;
+    let totalDuration = 0;
+    const methods: Record<string, number> = {};
+    const statusCodes: Record<string, number> = {};
 
-    async function fetchStats() {
-      try {
-        const res = await fetch(url);
-        if (res.ok) {
-          setStats(await res.json());
-        }
-      } catch {
-        // server unreachable, keep last stats
+    for (const log of logs) {
+      if (log.success) successCount++;
+      else errorCount++;
+
+      totalDuration += log.duration_ms;
+      methods[log.method] = (methods[log.method] ?? 0) + 1;
+
+      if (log.status !== null) {
+        const code = String(log.status);
+        statusCodes[code] = (statusCodes[code] ?? 0) + 1;
       }
     }
 
-    fetchStats();
-    const interval = setInterval(fetchStats, POLL_INTERVAL);
-    return () => clearInterval(interval);
-  }, [serverUrl]);
+    const now = Date.now();
+    const oneMinuteAgo = now - 60_000;
+    const recentCount = logs.filter(
+      (l) => new Date(l.timestamp).getTime() >= oneMinuteAgo,
+    ).length;
 
-  return stats;
+    return {
+      total_requests: logs.length,
+      success_count: successCount,
+      error_count: errorCount,
+      avg_duration_ms: Math.round(totalDuration / logs.length),
+      methods,
+      status_codes: statusCodes,
+      requests_per_minute: recentCount,
+    };
+  }, [logs]);
 }

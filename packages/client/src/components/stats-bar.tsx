@@ -1,6 +1,7 @@
+import type { ReactNode } from 'react';
 import type { Stats } from '../types';
 
-export function StatsBar({ stats }: { stats: Stats }) {
+export function StatsBar({ stats, children }: { stats: Stats; children?: ReactNode }) {
   const successRate =
     stats.total_requests > 0
       ? Math.round((stats.success_count / stats.total_requests) * 100)
@@ -13,6 +14,7 @@ export function StatsBar({ stats }: { stats: Stats }) {
       <Stat label="Errors" value={stats.error_count} color="text-red-400" />
       <Stat label="Avg" value={`${stats.avg_duration_ms}ms`} color="text-blue-400" />
       <Stat label="Req/min" value={stats.requests_per_minute} color="text-amber-400" />
+      {children}
     </div>
   );
 }

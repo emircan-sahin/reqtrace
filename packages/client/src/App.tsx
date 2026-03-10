@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { ArrowDown } from 'lucide-react';
 import { useSocket } from './hooks/use-socket';
 import { useStats } from './hooks/use-stats';
 import { StatsBar } from './components/stats-bar';
@@ -7,7 +9,8 @@ const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3100';
 
 export function App() {
   const { logs, pending, connected, clear } = useSocket(SERVER_URL);
-  const stats = useStats(SERVER_URL);
+  const stats = useStats(logs);
+  const [autoScroll, setAutoScroll] = useState(true);
 
   return (
     <div className="h-screen flex flex-col">
@@ -37,10 +40,22 @@ export function App() {
       </header>
 
       {/* Stats */}
-      <StatsBar stats={stats} />
+      <StatsBar stats={stats}>
+        <button
+          onClick={() => setAutoScroll(!autoScroll)}
+          className={`ml-auto p-1 rounded transition-colors ${
+            autoScroll
+              ? 'text-white bg-zinc-800'
+              : 'text-zinc-600 hover:text-white hover:bg-zinc-800'
+          }`}
+          title={autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
+        >
+          <ArrowDown size={14} />
+        </button>
+      </StatsBar>
 
       {/* Log Feed */}
-      <LogFeed logs={logs} pending={pending} />
+      <LogFeed logs={logs} pending={pending} autoScroll={autoScroll} />
     </div>
   );
 }

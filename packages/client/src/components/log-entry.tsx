@@ -29,6 +29,9 @@ export function CompletedEntry({ log }: { log: RequestLog }) {
   return (
     <div className="group px-4 py-3 border-b border-zinc-800/50 hover:bg-zinc-900/50 transition-colors">
       <div className="flex items-center gap-3">
+        <span className="text-xs text-zinc-600 font-mono">
+          {formatTime(log.timestamp)}
+        </span>
         <StatusBadge status={log.status} success={log.success} />
         <MethodBadge method={log.method} />
         <span className="font-mono text-sm text-zinc-300 truncate">
@@ -39,9 +42,6 @@ export function CompletedEntry({ log }: { log: RequestLog }) {
         <span className="flex-1" />
         <span className={`text-xs font-mono w-16 text-right ${durationColor(log.duration_ms)}`}>
           {log.duration_ms}ms
-        </span>
-        <span className="text-xs text-zinc-600 font-mono">
-          {formatTime(log.timestamp)}
         </span>
         <ActionMenu log={log} />
       </div>
@@ -162,7 +162,7 @@ function ActionMenu({ log }: { log: RequestLog }) {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-zinc-700 text-zinc-500 hover:text-zinc-300"
+        className="p-1 rounded hover:bg-zinc-700 text-zinc-600 hover:text-white transition-colors"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
           <circle cx="8" cy="3" r="1.5" />
