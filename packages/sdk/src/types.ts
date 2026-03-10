@@ -3,6 +3,8 @@ export interface ReqtraceConfig {
   enabled?: boolean;
   /** Server URL to send logs to (e.g. 'http://localhost:3100') */
   serverUrl?: string;
+  /** Project name for filtering in the dashboard (default: 'default') */
+  projectName?: string;
   /** Capture request/response bodies up to maxBodySize (default: false) */
   captureBody?: boolean;
   /** Maximum body size in bytes to capture (default: 10240 = 10KB) */
@@ -14,6 +16,7 @@ export interface ReqtraceConfig {
 export interface ResolvedConfig {
   enabled: boolean;
   serverUrl: string | null;
+  projectName: string;
   captureBody: boolean;
   maxBodySize: number;
   filter: (url: string, method: string) => boolean;
@@ -21,6 +24,7 @@ export interface ResolvedConfig {
 
 export interface RequestStart {
   id: string;
+  project: string;
   url: string;
   method: string;
   timestamp: string;
@@ -28,6 +32,7 @@ export interface RequestStart {
 
 export interface RequestLog {
   id: string;
+  project: string;
   url: string;
   method: string;
   status: number | null;

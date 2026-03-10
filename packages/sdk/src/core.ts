@@ -4,6 +4,7 @@ import { createWsTransport, type WsTransport } from './transport.js';
 const DEFAULT_CONFIG: ResolvedConfig = {
   enabled: true,
   serverUrl: null,
+  projectName: 'default',
   captureBody: false,
   maxBodySize: 10240,
   filter: () => true,

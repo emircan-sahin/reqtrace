@@ -1,5 +1,6 @@
 export interface RequestStart {
   id: string;
+  project: string;
   url: string;
   method: string;
   timestamp: string;
@@ -7,6 +8,7 @@ export interface RequestStart {
 
 export interface RequestLog {
   id: string;
+  project: string;
   url: string;
   method: string;
   status: number | null;
@@ -36,6 +38,7 @@ export interface WsRequestEnd extends WsMessage, RequestLog {
 }
 
 export interface LogFilter {
+  project?: string;
   method?: string;
   status?: number;
   success?: boolean;
@@ -59,6 +62,7 @@ export interface StatsResult {
 export interface LogStore {
   add(log: RequestLog): void;
   list(filter: LogFilter): { logs: RequestLog[]; total: number };
+  projects(): string[];
   stats(): StatsResult;
   count(): number;
   clear(): void;

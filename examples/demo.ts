@@ -3,6 +3,7 @@ import { ReqtraceCore, AxiosAdapter } from 'reqtrace';
 
 const core = new ReqtraceCore({
   serverUrl: 'http://localhost:3100',
+  projectName: 'demo',
   captureBody: true,
 });
 

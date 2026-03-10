@@ -15,6 +15,9 @@ export class InMemoryStore implements LogStore {
   list(filter: LogFilter): { logs: RequestLog[]; total: number } {
     let result = this.logs;
 
+    if (filter.project) {
+      result = result.filter((l) => l.project === filter.project);
+    }
     if (filter.method) {
       const m = filter.method.toUpperCase();
       result = result.filter((l) => l.method === m);
@@ -93,6 +96,10 @@ export class InMemoryStore implements LogStore {
       status_codes: statusCodes,
       requests_per_minute: recentCount,
     };
+  }
+
+  projects(): string[] {
+    return [...new Set(this.logs.map((l) => l.project))];
   }
 
   count(): number {

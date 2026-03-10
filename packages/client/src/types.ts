@@ -1,6 +1,7 @@
 export interface RequestStart {
   type: 'request_start';
   id: string;
+  project: string;
   url: string;
   method: string;
   timestamp: string;
@@ -8,6 +9,7 @@ export interface RequestStart {
 
 export interface RequestLog {
   id: string;
+  project: string;
   url: string;
   method: string;
   status: number | null;

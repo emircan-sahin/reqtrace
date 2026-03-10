@@ -23,6 +23,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       const q = request.query;
 
       const filter: LogFilter = {
+        project: q.project,
         method: q.method,
         status: q.status !== undefined ? Number(q.status) : undefined,
         success: q.success !== undefined ? q.success === true || q.success === ('true' as unknown) : undefined,
@@ -36,12 +37,18 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       return store.list(filter);
     });
 
+    app.get('/projects', async () => {
+      return { projects: store.projects() };
+    });
+
     app.post<{ Body: ResendBody }>('/resend', async (request, reply) => {
       const { url, method, headers, body } = request.body;
       const id = crypto.randomUUID();
       const timestamp = new Date().toISOString();
 
-      broadcast.broadcast({ type: 'request_start', id, url, method, timestamp });
+      const project = 'resend';
+
+      broadcast.broadcast({ type: 'request_start', id, project, url, method, timestamp });
 
       const start = performance.now();
       let log: RequestLog;
@@ -59,6 +66,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
 
         log = {
           id,
+          project,
           url,
           method,
           status: res.status,
@@ -77,6 +85,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       } catch (err) {
         log = {
           id,
+          project,
           url,
           method,
           status: null,

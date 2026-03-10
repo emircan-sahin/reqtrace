@@ -44,6 +44,7 @@ export class AxiosAdapter implements ReqtraceAdapter {
 
         this.core.handleStart({
           id,
+          project: this.core.getConfig().projectName,
           url,
           method,
           timestamp: new Date().toISOString(),
@@ -108,6 +109,7 @@ export class AxiosAdapter implements ReqtraceAdapter {
 
     const log: RequestLog = {
       id: reqConfig.__reqtrace_id ?? randomUUID(),
+      project: coreConfig.projectName,
       url,
       method,
       status: response?.status ?? null,
