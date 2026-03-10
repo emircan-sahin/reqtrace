@@ -1,0 +1,16 @@
+{
+  "name": "@reqtrace/examples",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "demo": "tsx demo.ts"
+  },
+  "dependencies": {
+    "reqtrace": "workspace:*",
+    "axios": "^1.7.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}
