@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useLayoutEffect, useMemo, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useFilteredLogs } from '@/hooks/use-filtered-logs';
 import { useLogStore } from '@/stores/use-log-store';
@@ -17,6 +17,7 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
   const autoScroll = useConnectionStore((s) => s.autoScroll);
   const hasMore = useLogStore((s) => s.hasMore);
   const containerRef = useRef<HTMLDivElement>(null);
+  const prevItemsLengthRef = useRef(0);
   const pendingEntries = Array.from(filteredPending.values());
   const isEmpty = pendingEntries.length === 0 && filteredLogs.length === 0;
 
@@ -35,20 +36,47 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
     overscan: 20,
   });
 
+  // Auto-scroll to bottom when new items are appended
   useEffect(() => {
     if (autoScroll && items.length > 0) {
       virtualizer.scrollToIndex(items.length - 1, { align: 'end' });
     }
   }, [items.length, autoScroll, virtualizer]);
 
+  // Preserve scroll position when items are prepended (loadMore)
+  useLayoutEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const prev = prevItemsLengthRef.current;
+    const curr = items.length;
+    prevItemsLengthRef.current = curr;
+
+    if (!autoScroll && curr > prev && prev > 0 && el.scrollTop < ROW_HEIGHT * 20) {
+      const delta = curr - prev;
+      el.scrollTop += delta * ROW_HEIGHT;
+    }
+  }, [items.length, autoScroll]);
+
   const handleScroll = useCallback(() => {
-    if (!hasMore) return;
-    const virtualItems = virtualizer.getVirtualItems();
-    if (virtualItems.length === 0) return;
-    if (virtualItems[0].index < 10) {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Auto-manage autoScroll based on scroll position
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const conn = useConnectionStore.getState();
+    if (distanceFromBottom > ROW_HEIGHT * 3) {
+      if (conn.autoScroll) conn.setAutoScroll(false);
+    } else {
+      if (!conn.autoScroll) conn.setAutoScroll(true);
+    }
+
+    // Load more when scrolled near the top
+    if (!useLogStore.getState().hasMore) return;
+    if (el.scrollTop < ROW_HEIGHT * 10) {
       loadMore();
     }
-  }, [hasMore, loadMore, virtualizer]);
+  }, [loadMore]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -57,42 +85,47 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
     return () => el.removeEventListener('scroll', handleScroll);
   }, [handleScroll]);
 
-  if (isEmpty) {
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        <div className="text-center">
-          <p className="text-lg">No requests yet</p>
-          <p className="text-sm mt-1">Waiting for incoming requests...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div ref={containerRef} className="flex-1 overflow-y-auto">
-      <div
-        className="relative w-full"
-        style={{ height: `${virtualizer.getTotalSize()}px` }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => {
-          const item = items[virtualRow.index];
-          return (
-            <div
-              key={virtualRow.key}
-              className="absolute top-0 left-0 w-full"
-              style={{ transform: `translateY(${virtualRow.start}px)` }}
-              ref={virtualizer.measureElement}
-              data-index={virtualRow.index}
-            >
-              {item.kind === 'log' ? (
-                <CompletedEntry log={item.data} />
-              ) : (
-                <PendingEntry entry={item.data} />
-              )}
+      {isEmpty ? (
+        <div className="h-full flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <p className="text-lg">No requests yet</p>
+            <p className="text-sm mt-1">Waiting for incoming requests...</p>
+          </div>
+        </div>
+      ) : (
+        <>
+          {!hasMore && (
+            <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
+              No more logs to load
             </div>
-          );
-        })}
-      </div>
+          )}
+          <div
+            className="relative w-full"
+            style={{ height: `${virtualizer.getTotalSize()}px` }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const item = items[virtualRow.index];
+              return (
+                <div
+                  key={virtualRow.key}
+                  className="absolute top-0 left-0 w-full"
+                  style={{ transform: `translateY(${virtualRow.start}px)` }}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualRow.index}
+                >
+                  {item.kind === 'log' ? (
+                    <CompletedEntry log={item.data} />
+                  ) : (
+                    <PendingEntry entry={item.data} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
