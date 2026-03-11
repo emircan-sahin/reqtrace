@@ -26,7 +26,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         project: q.project,
         method: q.method,
         status: q.status !== undefined ? Number(q.status) : undefined,
-        success: q.success !== undefined ? q.success === true || q.success === ('true' as unknown) : undefined,
+        success: q.success !== undefined ? String(q.success) === 'true' : undefined,
         url: q.url,
         search: q.search,
         from: q.from,
@@ -57,6 +57,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       broadcast.broadcast({ type: 'request_start', id, project, url, method, timestamp });
 
       const start = performance.now();
+      const base = { id, project, url, method, proxy_host: null, proxy_port: null, request_headers: headers, request_body: body, timestamp };
       let log: RequestLog;
 
       try {
@@ -71,40 +72,24 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         res.headers.forEach((v, k) => { responseHeaders[k] = v; });
 
         log = {
-          id,
-          project,
-          url,
-          method,
+          ...base,
           status: res.status,
           duration_ms: Math.round(performance.now() - start),
-          proxy_host: null,
-          proxy_port: null,
           response_size_bytes: new TextEncoder().encode(responseBody).length,
-          request_headers: headers,
           response_headers: responseHeaders,
-          request_body: body,
           response_body: responseBody,
           error_message: null,
           success: res.ok,
-          timestamp,
         };
       } catch (err) {
         log = {
-          id,
-          project,
-          url,
-          method,
+          ...base,
           status: null,
           duration_ms: Math.round(performance.now() - start),
-          proxy_host: null,
-          proxy_port: null,
           response_size_bytes: null,
-          request_headers: headers,
           response_headers: {},
-          request_body: body,
           error_message: err instanceof Error ? err.message : String(err),
           success: false,
-          timestamp,
         };
       }
 

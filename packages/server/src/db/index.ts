@@ -34,7 +34,6 @@ export async function initDb(pool: pg.Pool): Promise<void> {
       id SERIAL PRIMARY KEY,
       email TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
-      token TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
 
