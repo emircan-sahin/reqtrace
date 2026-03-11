@@ -1,5 +1,7 @@
 import type { WebSocket } from 'ws';
 
+export const WS_AUTH_FAILURE = 4001;
+
 export class BroadcastManager {
   private clients: Set<WebSocket> = new Set();
   private authClients: Map<WebSocket, string> = new Map();
