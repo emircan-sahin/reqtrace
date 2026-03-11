@@ -1,18 +1,20 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ArrowDown } from 'lucide-react';
 import { useSocket } from './hooks/use-socket';
 import { useStats } from './hooks/use-stats';
 import { StatsBar } from './components/stats-bar';
 import { LogFeed } from './components/log-feed';
 import { ProjectFilter } from './components/project-filter';
+import { SearchInput } from './components/search-input';
 
 const SERVER_URL = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3100';
 
 export function App() {
   const [autoScroll, setAutoScroll] = useState(true);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [projects, setProjects] = useState<string[]>([]);
-  const { logs, pending, connected, hasMore, loadMore, clear } = useSocket(SERVER_URL, selectedProject);
+  const { logs, pending, connected, hasMore, loadMore, clear } = useSocket(SERVER_URL, selectedProject, search);
 
   // Fetch project list from server
   useEffect(() => {
@@ -36,19 +38,38 @@ export function App() {
   }, [logs, projects]);
 
   // Client-side filter for real-time WS messages (API logs already filtered)
+  const matchesSearch = useCallback((text: string) => {
+    if (!search) return true;
+    return text.toLowerCase().includes(search.toLowerCase());
+  }, [search]);
+
   const filteredLogs = useMemo(() => {
-    if (!selectedProject) return logs;
-    return logs.filter((l) => l.project === selectedProject);
-  }, [logs, selectedProject]);
+    let result = logs;
+    if (selectedProject) {
+      result = result.filter((l) => l.project === selectedProject);
+    }
+    if (search) {
+      result = result.filter((l) =>
+        matchesSearch(l.url) ||
+        matchesSearch(l.method) ||
+        (l.status !== null && String(l.status).includes(search)) ||
+        (l.error_message && matchesSearch(l.error_message)) ||
+        (l.proxy_host && matchesSearch(l.proxy_host)),
+      );
+    }
+    return result;
+  }, [logs, selectedProject, search, matchesSearch]);
 
   const filteredPending = useMemo(() => {
-    if (!selectedProject) return pending;
+    if (!selectedProject && !search) return pending;
     const filtered = new Map(pending);
     for (const [id, entry] of filtered) {
-      if (entry.project !== selectedProject) filtered.delete(id);
+      const projectMatch = !selectedProject || entry.project === selectedProject;
+      const searchMatch = !search || matchesSearch(entry.url) || matchesSearch(entry.method);
+      if (!projectMatch || !searchMatch) filtered.delete(id);
     }
     return filtered;
-  }, [pending, selectedProject]);
+  }, [pending, selectedProject, search, matchesSearch]);
 
   const stats = useStats(filteredLogs);
 
@@ -72,6 +93,7 @@ export function App() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <SearchInput value={search} onChange={setSearch} />
           <ProjectFilter
             projects={projects}
             selected={selectedProject}

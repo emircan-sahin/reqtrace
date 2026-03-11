@@ -5,7 +5,7 @@ const PAGE_SIZE = 200;
 const RECONNECT_BASE = 1000;
 const RECONNECT_MAX = 30000;
 
-export function useSocket(serverUrl: string, project: string | null) {
+export function useSocket(serverUrl: string, project: string | null, search: string = '') {
   const [logs, setLogs] = useState<RequestLog[]>([]);
   const [pending, setPending] = useState<Map<string, RequestStart>>(new Map());
   const [connected, setConnected] = useState(false);
@@ -23,8 +23,9 @@ export function useSocket(serverUrl: string, project: string | null) {
     loadingRef.current = false;
 
     const projectParam = project ? `&project=${encodeURIComponent(project)}` : '';
+    const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
 
-    fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}${projectParam}`)
+    fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}${projectParam}${searchParam}`)
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
         if (data) {
@@ -34,7 +35,7 @@ export function useSocket(serverUrl: string, project: string | null) {
         }
       })
       .catch(() => {});
-  }, [baseUrl, project]);
+  }, [baseUrl, project, search]);
 
   // WebSocket connection (independent of project filter)
   useEffect(() => {
@@ -107,8 +108,9 @@ export function useSocket(serverUrl: string, project: string | null) {
 
     try {
       const projectParam = project ? `&project=${encodeURIComponent(project)}` : '';
+      const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
       const currentCount = logs.length;
-      const res = await fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}&offset=${currentCount}${projectParam}`);
+      const res = await fetch(`${baseUrl}/api/logs?limit=${PAGE_SIZE}&offset=${currentCount}${projectParam}${searchParam}`);
       if (!res.ok) return;
       const data = await res.json();
       const older: RequestLog[] = [...data.logs].reverse();
@@ -125,7 +127,7 @@ export function useSocket(serverUrl: string, project: string | null) {
     } finally {
       loadingRef.current = false;
     }
-  }, [baseUrl, project, hasMore, ready, logs.length]);
+  }, [baseUrl, project, search, hasMore, ready, logs.length]);
 
   const clear = useCallback(() => {
     setLogs([]);

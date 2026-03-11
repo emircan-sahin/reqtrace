@@ -43,6 +43,7 @@ export interface LogFilter {
   status?: number;
   success?: boolean;
   url?: string;
+  search?: string;
   from?: string;
   to?: string;
   limit?: number;

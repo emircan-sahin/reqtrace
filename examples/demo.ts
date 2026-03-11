@@ -10,28 +10,26 @@ const core = new ReqtraceCore({
 const adapter = new AxiosAdapter(axios, core);
 adapter.install();
 
-const urls = [
-  'https://jsonplaceholder.typicode.com/todos/1',
-  'https://jsonplaceholder.typicode.com/posts/1',
-  'https://jsonplaceholder.typicode.com/users/1',
-  'https://jsonplaceholder.typicode.com/comments/1',
-  'https://jsonplaceholder.typicode.com/todos/99999999',
+const requests = [
+  { url: 'https://jsonplaceholder.typicode.com/todos/1', method: 'get' as const },
+  { url: 'https://jsonplaceholder.typicode.com/posts/1', method: 'get' as const },
+  { url: 'https://jsonplaceholder.typicode.com/users/1', method: 'get' as const,
+    proxy: { host: '127.0.0.1', port: 8080 } },
+  { url: 'https://jsonplaceholder.typicode.com/comments/1', method: 'get' as const,
+    proxy: { host: 'proxy.example.com', port: 3128 } },
+  { url: 'https://jsonplaceholder.typicode.com/todos/99999999', method: 'post' as const },
 ];
-
-const methods = ['get', 'get', 'get', 'get', 'post'] as const;
 
 let i = 0;
 
 const interval = setInterval(async () => {
-  const idx = i % urls.length;
-  const method = methods[idx];
-  const url = urls[idx];
+  const { url, method, proxy } = requests[i % requests.length];
 
   try {
     if (method === 'post') {
-      await axios.post(url, { title: 'test', body: `request #${i}` });
+      await axios.post(url, { title: 'test', body: `request #${i}` }, { proxy });
     } else {
-      await axios.get(url);
+      await axios.get(url, { proxy });
     }
   } catch {
     // errors are logged by reqtrace

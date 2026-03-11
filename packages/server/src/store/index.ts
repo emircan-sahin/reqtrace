@@ -32,6 +32,16 @@ export class InMemoryStore implements LogStore {
       const sub = filter.url.toLowerCase();
       result = result.filter((l) => l.url.toLowerCase().includes(sub));
     }
+    if (filter.search) {
+      const q = filter.search.toLowerCase();
+      result = result.filter((l) =>
+        l.url.toLowerCase().includes(q) ||
+        l.method.toLowerCase().includes(q) ||
+        (l.status !== null && String(l.status).includes(q)) ||
+        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
+        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
+      );
+    }
     if (filter.from) {
       result = result.filter((l) => l.timestamp >= filter.from!);
     }

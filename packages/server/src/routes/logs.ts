@@ -28,6 +28,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         status: q.status !== undefined ? Number(q.status) : undefined,
         success: q.success !== undefined ? q.success === true || q.success === ('true' as unknown) : undefined,
         url: q.url,
+        search: q.search,
         from: q.from,
         to: q.to,
         limit: q.limit !== undefined ? Number(q.limit) : undefined,
