@@ -5,14 +5,14 @@ const MAX_ENTRIES = 10_000;
 export class InMemoryStore implements LogStore {
   private logs: RequestLog[] = [];
 
-  add(log: RequestLog): void {
+  async add(log: RequestLog): Promise<void> {
     this.logs.push(log);
     if (this.logs.length > MAX_ENTRIES) {
       this.logs.shift();
     }
   }
 
-  list(filter: LogFilter): { logs: RequestLog[]; total: number } {
+  async list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }> {
     let result = this.logs;
 
     if (filter.project) {
@@ -61,7 +61,7 @@ export class InMemoryStore implements LogStore {
     return { logs: result, total };
   }
 
-  stats(): StatsResult {
+  async stats(): Promise<StatsResult> {
     const total = this.logs.length;
 
     if (total === 0) {
@@ -108,15 +108,19 @@ export class InMemoryStore implements LogStore {
     };
   }
 
-  projects(): string[] {
+  async projects(): Promise<string[]> {
     return [...new Set(this.logs.map((l) => l.project))];
   }
 
-  count(): number {
+  async count(): Promise<number> {
     return this.logs.length;
   }
 
-  clear(): void {
+  async clear(): Promise<void> {
     this.logs = [];
+  }
+
+  async close(): Promise<void> {
+    // no-op for in-memory store
   }
 }

@@ -6,6 +6,7 @@ let logCounter = 0;
 function mockLog(overrides?: Partial<RequestLog>): RequestLog {
   return {
     id: `test-${++logCounter}`,
+    project: 'test',
     url: 'https://api.example.com/data',
     method: 'GET',
     status: 200,
@@ -30,85 +31,85 @@ describe('InMemoryStore', () => {
   });
 
   describe('add / count', () => {
-    it('starts empty', () => {
-      expect(store.count()).toBe(0);
+    it('starts empty', async () => {
+      expect(await store.count()).toBe(0);
     });
 
-    it('adds logs', () => {
-      store.add(mockLog());
-      store.add(mockLog());
-      expect(store.count()).toBe(2);
+    it('adds logs', async () => {
+      await store.add(mockLog());
+      await store.add(mockLog());
+      expect(await store.count()).toBe(2);
     });
   });
 
   describe('list', () => {
-    it('returns all logs newest first', () => {
-      store.add(mockLog({ url: '/first', timestamp: '2026-01-01T00:00:00Z' }));
-      store.add(mockLog({ url: '/second', timestamp: '2026-01-01T00:01:00Z' }));
+    it('returns all logs newest first', async () => {
+      await store.add(mockLog({ url: '/first', timestamp: '2026-01-01T00:00:00Z' }));
+      await store.add(mockLog({ url: '/second', timestamp: '2026-01-01T00:01:00Z' }));
 
-      const { logs, total } = store.list({});
+      const { logs, total } = await store.list({});
       expect(total).toBe(2);
       expect(logs[0].url).toBe('/second');
       expect(logs[1].url).toBe('/first');
     });
 
-    it('filters by method', () => {
-      store.add(mockLog({ method: 'GET' }));
-      store.add(mockLog({ method: 'POST' }));
+    it('filters by method', async () => {
+      await store.add(mockLog({ method: 'GET' }));
+      await store.add(mockLog({ method: 'POST' }));
 
-      const { logs } = store.list({ method: 'post' });
+      const { logs } = await store.list({ method: 'post' });
       expect(logs).toHaveLength(1);
       expect(logs[0].method).toBe('POST');
     });
 
-    it('filters by status', () => {
-      store.add(mockLog({ status: 200 }));
-      store.add(mockLog({ status: 404 }));
+    it('filters by status', async () => {
+      await store.add(mockLog({ status: 200 }));
+      await store.add(mockLog({ status: 404 }));
 
-      const { logs } = store.list({ status: 404 });
+      const { logs } = await store.list({ status: 404 });
       expect(logs).toHaveLength(1);
     });
 
-    it('filters by success', () => {
-      store.add(mockLog({ success: true }));
-      store.add(mockLog({ success: false }));
+    it('filters by success', async () => {
+      await store.add(mockLog({ success: true }));
+      await store.add(mockLog({ success: false }));
 
-      const { logs } = store.list({ success: false });
+      const { logs } = await store.list({ success: false });
       expect(logs).toHaveLength(1);
       expect(logs[0].success).toBe(false);
     });
 
-    it('filters by url substring', () => {
-      store.add(mockLog({ url: 'https://api.example.com/users' }));
-      store.add(mockLog({ url: 'https://api.example.com/posts' }));
+    it('filters by url substring', async () => {
+      await store.add(mockLog({ url: 'https://api.example.com/users' }));
+      await store.add(mockLog({ url: 'https://api.example.com/posts' }));
 
-      const { logs } = store.list({ url: 'users' });
+      const { logs } = await store.list({ url: 'users' });
       expect(logs).toHaveLength(1);
     });
 
-    it('paginates with limit and offset', () => {
+    it('paginates with limit and offset', async () => {
       for (let i = 0; i < 10; i++) {
-        store.add(mockLog({ url: `/item/${i}` }));
+        await store.add(mockLog({ url: `/item/${i}` }));
       }
 
-      const { logs } = store.list({ limit: 3, offset: 2 });
+      const { logs } = await store.list({ limit: 3, offset: 2 });
       expect(logs).toHaveLength(3);
     });
   });
 
   describe('stats', () => {
-    it('returns zeros for empty store', () => {
-      const s = store.stats();
+    it('returns zeros for empty store', async () => {
+      const s = await store.stats();
       expect(s.total_requests).toBe(0);
       expect(s.avg_duration_ms).toBe(0);
     });
 
-    it('computes correct stats', () => {
-      store.add(mockLog({ method: 'GET', status: 200, duration_ms: 100, success: true }));
-      store.add(mockLog({ method: 'GET', status: 200, duration_ms: 200, success: true }));
-      store.add(mockLog({ method: 'POST', status: 500, duration_ms: 300, success: false }));
+    it('computes correct stats', async () => {
+      await store.add(mockLog({ method: 'GET', status: 200, duration_ms: 100, success: true }));
+      await store.add(mockLog({ method: 'GET', status: 200, duration_ms: 200, success: true }));
+      await store.add(mockLog({ method: 'POST', status: 500, duration_ms: 300, success: false }));
 
-      const s = store.stats();
+      const s = await store.stats();
       expect(s.total_requests).toBe(3);
       expect(s.success_count).toBe(2);
       expect(s.error_count).toBe(1);
@@ -121,11 +122,11 @@ describe('InMemoryStore', () => {
   });
 
   describe('clear', () => {
-    it('removes all logs', () => {
-      store.add(mockLog());
-      store.add(mockLog());
-      store.clear();
-      expect(store.count()).toBe(0);
+    it('removes all logs', async () => {
+      await store.add(mockLog());
+      await store.add(mockLog());
+      await store.clear();
+      expect(await store.count()).toBe(0);
     });
   });
 });

@@ -14,7 +14,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
   return async function (app: FastifyInstance): Promise<void> {
     app.post<{ Body: RequestLog }>('/logs', async (request, reply) => {
       const log = request.body;
-      store.add(log);
+      await store.add(log);
       broadcast.broadcast({ type: 'request_end', ...log });
       return reply.code(201).send({ ok: true });
     });
@@ -35,11 +35,11 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         offset: q.offset !== undefined ? Number(q.offset) : undefined,
       };
 
-      return store.list(filter);
+      return await store.list(filter);
     });
 
     app.get('/projects', async () => {
-      return { projects: store.projects() };
+      return { projects: await store.projects() };
     });
 
     app.post<{ Body: ResendBody }>('/resend', async (request, reply) => {
@@ -103,7 +103,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         };
       }
 
-      store.add(log);
+      await store.add(log);
       broadcast.broadcast({ type: 'request_end', ...log });
       return reply.code(200).send(log);
     });

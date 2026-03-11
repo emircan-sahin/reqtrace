@@ -61,10 +61,11 @@ export interface StatsResult {
 }
 
 export interface LogStore {
-  add(log: RequestLog): void;
-  list(filter: LogFilter): { logs: RequestLog[]; total: number };
-  projects(): string[];
-  stats(): StatsResult;
-  count(): number;
-  clear(): void;
+  add(log: RequestLog): Promise<void>;
+  list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }>;
+  projects(): Promise<string[]>;
+  stats(): Promise<StatsResult>;
+  count(): Promise<number>;
+  clear(): Promise<void>;
+  close(): Promise<void>;
 }

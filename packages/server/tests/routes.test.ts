@@ -15,6 +15,7 @@ afterAll(async () => {
 
 const sampleLog = {
   id: 'route-test-1',
+  project: 'test',
   url: 'https://api.example.com/data',
   method: 'GET',
   status: 200,

@@ -6,21 +6,22 @@ import { BroadcastManager } from './ws/index.js';
 import { healthRoutes } from './routes/health.js';
 import { logsRoutes } from './routes/logs.js';
 import { statsRoutes } from './routes/stats.js';
+import type { LogStore } from './types.js';
 
-export async function createApp(opts?: { logger?: boolean }) {
+export async function createApp(opts?: { logger?: boolean; store?: LogStore }) {
   const app = Fastify({ logger: opts?.logger ?? false });
 
   await app.register(cors, { origin: true });
   await app.register(websocket);
 
-  const store = new InMemoryStore();
+  const store = opts?.store ?? new InMemoryStore();
   const broadcast = new BroadcastManager();
 
   app.register(async (fastify) => {
     fastify.get('/ws', { websocket: true }, (socket) => {
       broadcast.addClient(socket);
 
-      socket.on('message', (raw) => {
+      socket.on('message', async (raw) => {
         try {
           const msg = JSON.parse(raw.toString());
 
@@ -28,7 +29,7 @@ export async function createApp(opts?: { logger?: boolean }) {
             broadcast.broadcast(msg);
           } else if (msg.type === 'request_end') {
             const { type: _, ...log } = msg;
-            store.add(log);
+            await store.add(log);
             broadcast.broadcast(msg);
           }
         } catch {
