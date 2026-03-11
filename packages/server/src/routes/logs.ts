@@ -38,6 +38,11 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       return await store.list(filter);
     });
 
+    app.delete('/logs', async () => {
+      await store.clear();
+      return { ok: true };
+    });
+
     app.get('/projects', async () => {
       return { projects: await store.projects() };
     });

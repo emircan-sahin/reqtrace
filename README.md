@@ -21,6 +21,11 @@ git clone https://github.com/emircan-sahin/reqtrace.git
 cd reqtrace
 pnpm install
 
+# Set up PostgreSQL
+createdb reqtrace
+cp packages/server/.env.example packages/server/.env
+# Edit .env if needed (defaults to postgresql://localhost:5432/reqtrace)
+
 # Start server + dashboard
 pnpm dev
 
@@ -72,7 +77,7 @@ Your App (axios + reqtrace SDK)
         │
         │ WebSocket
         ▼
-  reqtrace server (:3100)     ← in-memory store, REST API
+  reqtrace server (:3100)     ← PostgreSQL store, REST API
         │
         │ WebSocket
         ▼
@@ -115,7 +120,7 @@ pnpm test           # Run all tests
 | Package | Stack |
 |---------|-------|
 | SDK | TypeScript, axios (peer dep), ws |
-| Server | Fastify, @fastify/websocket |
+| Server | Fastify, @fastify/websocket, PostgreSQL, Zod |
 | Client | React, Tailwind CSS, @tanstack/react-virtual |
 
 ## License

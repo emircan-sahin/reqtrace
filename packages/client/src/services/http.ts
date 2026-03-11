@@ -24,4 +24,10 @@ export async function post<T>(path: string, body: unknown): Promise<T> {
   return res.json();
 }
 
+export async function del<T>(path: string): Promise<T> {
+  const res = await fetch(`${BASE_URL}${path}`, { method: 'DELETE' });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
 export { BASE_URL };

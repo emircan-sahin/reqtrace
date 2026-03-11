@@ -2,12 +2,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import { useLogStore } from '@/stores/use-log-store';
+import { del } from '@/services/http';
 import { SearchInput } from './search-input';
 import { ProjectFilter } from './project-filter';
 
 export function Header() {
   const connected = useConnectionStore((s) => s.connected);
   const clear = useLogStore((s) => s.clear);
+
+  const handleClear = () => {
+    del('/api/logs').catch(() => {});
+    clear();
+  };
 
   return (
     <header className="flex items-center justify-between px-4 py-3 bg-background border-b border-border">
@@ -30,7 +36,7 @@ export function Header() {
       <div className="flex items-center gap-2">
         <SearchInput />
         <ProjectFilter />
-        <Button variant="outline" size="sm" onClick={clear}>
+        <Button variant="outline" size="sm" onClick={handleClear}>
           Clear
         </Button>
       </div>

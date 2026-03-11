@@ -11,7 +11,7 @@ import type { LogStore } from './types.js';
 export async function createApp(opts?: { logger?: boolean; store?: LogStore }) {
   const app = Fastify({ logger: opts?.logger ?? false });
 
-  await app.register(cors, { origin: true });
+  await app.register(cors, { origin: true, methods: ['GET', 'POST', 'DELETE', 'OPTIONS'] });
   await app.register(websocket);
 
   const store = opts?.store ?? new InMemoryStore();
