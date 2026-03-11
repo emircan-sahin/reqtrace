@@ -1,7 +1,9 @@
 import { BASE_URL } from './http';
+import { useAuthStore } from '@/stores/use-auth-store';
 
 const RECONNECT_BASE = 1000;
 const RECONNECT_MAX = 30000;
+const WS_AUTH_FAILURE = 4001;
 
 export type WsMessageHandler = (data: string) => void;
 export type WsStatusHandler = (connected: boolean) => void;
@@ -20,7 +22,9 @@ export class WebSocketService {
   connect() {
     if (this.disposed) return;
 
-    const wsUrl = BASE_URL.replace(/^http/, 'ws') + '/ws';
+    let wsUrl = BASE_URL.replace(/^http/, 'ws') + '/ws';
+    const token = localStorage.getItem('reqtrace_token');
+    if (token) wsUrl += `?token=${encodeURIComponent(token)}`;
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
@@ -29,10 +33,17 @@ export class WebSocketService {
       this.reconnectDelay = RECONNECT_BASE;
     };
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       this.ws = null;
       if (this.disposed) return;
       this.onStatusChange(false);
+
+      // Auth failure — logout, don't reconnect
+      if (event.code === WS_AUTH_FAILURE) {
+        useAuthStore.getState().logout();
+        return;
+      }
+
       this.reconnectTimer = setTimeout(() => {
         this.reconnectTimer = null;
         this.connect();

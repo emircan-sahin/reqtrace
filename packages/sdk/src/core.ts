@@ -28,7 +28,7 @@ export class ReqtraceCore {
     if (logHandler) {
       this.logHandler = logHandler;
     } else if (this.config.serverUrl) {
-      this.transport = createWsTransport(this.config.serverUrl);
+      this.transport = createWsTransport(this.config.serverUrl, config?.apiKey);
       const transport = this.transport;
       this.startHandler = (start) => transport.sendStart(start);
       this.logHandler = (log: RequestLog) => {

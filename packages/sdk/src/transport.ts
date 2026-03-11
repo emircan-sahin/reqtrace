@@ -10,8 +10,9 @@ export interface WsTransport {
   close(): void;
 }
 
-export function createWsTransport(serverUrl: string): WsTransport {
-  const wsUrl = serverUrl.replace(/^http/, 'ws').replace(/\/+$/, '') + '/ws';
+export function createWsTransport(serverUrl: string, apiKey?: string): WsTransport {
+  let wsUrl = serverUrl.replace(/^http/, 'ws').replace(/\/+$/, '') + '/ws';
+  if (apiKey) wsUrl += `?apiKey=${encodeURIComponent(apiKey)}`;
 
   let ws: WebSocket | null = null;
   let reconnectDelay = 1000;

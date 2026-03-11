@@ -3,6 +3,7 @@ import { ReqtraceCore, AxiosAdapter } from 'reqtrace';
 
 const core = new ReqtraceCore({
   serverUrl: 'http://localhost:3100',
+  apiKey: process.env.API_KEY ?? 'reqtrace-dev-api-key-change-in-production',
   projectName: 'demo',
   captureBody: true,
 });

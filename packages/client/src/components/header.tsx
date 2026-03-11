@@ -1,18 +1,27 @@
+import { LogOut } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import { useLogStore } from '@/stores/use-log-store';
-import { del } from '@/services/http';
+import { useAuthStore } from '@/stores/use-auth-store';
+import { del, post } from '@/services/http';
 import { SearchInput } from './search-input';
 import { ProjectFilter } from './project-filter';
 
 export function Header() {
   const connected = useConnectionStore((s) => s.connected);
   const clear = useLogStore((s) => s.clear);
+  const token = useAuthStore((s) => s.token);
+  const logout = useAuthStore((s) => s.logout);
 
   const handleClear = () => {
     del('/api/logs').catch(() => {});
     clear();
+  };
+
+  const handleLogout = () => {
+    post('/api/auth/logout', {}).catch(() => {});
+    logout();
   };
 
   return (
@@ -39,6 +48,11 @@ export function Header() {
         <Button variant="outline" size="sm" onClick={handleClear}>
           Clear
         </Button>
+        {token && (
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <LogOut className="w-4 h-4" />
+          </Button>
+        )}
       </div>
     </header>
   );

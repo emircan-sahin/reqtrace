@@ -8,7 +8,12 @@ async function main() {
   await initDb(pool);
   const store = new PostgresStore(pool);
 
-  const app = await createApp({ store });
+  const app = await createApp({
+    store,
+    pool,
+    jwtSecret: env.JWT_SECRET,
+    apiKey: env.API_KEY,
+  });
 
   await app.listen({ port: env.PORT, host: env.HOST });
   console.log(`[reqtrace] server listening on http://${env.HOST}:${env.PORT}`);

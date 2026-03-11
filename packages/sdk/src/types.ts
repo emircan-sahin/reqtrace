@@ -3,6 +3,8 @@ export interface ReqtraceConfig {
   enabled?: boolean;
   /** Server URL to send logs to (e.g. 'http://localhost:3100') */
   serverUrl?: string;
+  /** API key for authenticating with the server */
+  apiKey?: string;
   /** Project name for filtering in the dashboard (default: 'default') */
   projectName?: string;
   /** Capture request/response bodies up to maxBodySize (default: false) */
