@@ -38,6 +38,7 @@ adapter.install()
 ## Config Options
 - `enabled` — Enable/disable logging (default: true)
 - `serverUrl` — Server URL for WebSocket transport
+- `apiKey` — API key for authenticating with the server
 - `projectName` — Project identifier for filtering (default: 'default')
 - `captureBody` — Capture request/response bodies (default: false)
 - `maxBodySize` — Max body size in bytes (default: 51200)

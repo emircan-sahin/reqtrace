@@ -17,7 +17,7 @@ Package-specific details are in `.claude/rules/` (sdk.md, server.md, client.md).
 ## Deployment Model
 
 Fully self-hosted. No cloud dependency, no vendor lock-in.
-Auth/access control is optional (planned for later).
+Single admin account with JWT auth + API key for SDK.
 
 ## Code Conventions
 
@@ -49,10 +49,18 @@ pnpm test         # Run all tests
 
 - SDK uses ws (not axios) for transport to avoid interceptor loops
 - SDK sends via WebSocket with auto-reconnect and 100-message buffer
+- SDK authenticates with API key via WS query string
 - Server binds to 127.0.0.1 (not 0.0.0.0) to avoid dual-stack issues
 - Server uses PostgreSQL store (5K logs per project, batch cleanup every 100 inserts)
-- Server env validated with Zod (src/env.ts), defaults for PORT/HOST/DATABASE_URL
+- Server env validated with Zod (src/env.ts), defaults for PORT/HOST/DATABASE_URL/JWT_SECRET/API_KEY
+- Server auth: Fastify plugin (plugins/auth.ts) with JWT + DB token validation
+- JWT tokens stored in DB — login invalidates previous session, logout nulls token
+- REST middleware verifies JWT signature + DB token match on every request
+- WS clients validated on connect + periodically every 60s against DB
+- Dashboard auth: single admin account (first register becomes admin)
+- API key never exposed in dashboard — only in .env
 - InMemoryStore kept as fallback for tests
 - Client uses @tanstack/react-virtual for 10K+ log rendering
+- Client auto-logout on 401 (REST) or WS close code 4001
 - All request headers (including Authorization) are logged — intentional,
   since the server is self-hosted and the developer owns the data

@@ -22,7 +22,11 @@ export const authPlugin = fp(async (app: FastifyInstance, opts: AuthPluginOption
     secret: jwtSecret,
     sign: { expiresIn: '7d' },
   });
-  await app.register(rateLimit, { global: false });
+  await app.register(rateLimit, {
+    max: 50,
+    timeWindow: '1 minute',
+    allowList: ['/health', '/ws'],
+  });
 
   // REST hook: verify JWT signature + check token matches DB
   app.addHook('onRequest', async (request, reply) => {
