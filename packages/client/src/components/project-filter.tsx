@@ -1,24 +1,33 @@
-interface ProjectFilterProps {
-  projects: string[];
-  selected: string | null;
-  onChange: (project: string | null) => void;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useFilterStore } from '@/stores/use-filter-store';
 
-export function ProjectFilter({ projects, selected, onChange }: ProjectFilterProps) {
+export function ProjectFilter() {
+  const projects = useFilterStore((s) => s.projects);
+  const selectedProject = useFilterStore((s) => s.selectedProject);
+  const setSelectedProject = useFilterStore((s) => s.setSelectedProject);
+
   if (projects.length === 0) return null;
 
   return (
-    <select
-      value={selected ?? ''}
-      onChange={(e) => onChange(e.target.value || null)}
-      className="text-xs bg-zinc-800 text-zinc-300 border border-zinc-700 rounded px-2 py-1 outline-none hover:border-zinc-600 transition-colors"
+    <Select
+      value={selectedProject ?? '__all__'}
+      onValueChange={(v) => setSelectedProject(v === '__all__' ? null : v)}
     >
-      <option value="">All projects</option>
-      {projects.map((p) => (
-        <option key={p} value={p}>
-          {p}
-        </option>
-      ))}
-    </select>
+      <SelectTrigger size="sm" className="text-xs shadow-none">
+        <SelectValue placeholder="All projects" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="__all__">All projects</SelectItem>
+        {projects.map((p) => (
+          <SelectItem key={p} value={p}>{p}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

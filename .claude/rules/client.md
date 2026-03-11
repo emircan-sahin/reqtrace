@@ -12,42 +12,49 @@ with live feed, filtering, detail inspection, and stats.
 ## Tech Stack
 - React 19 (no StrictMode)
 - Tailwind CSS v4 (@tailwindcss/vite plugin)
+- shadcn/ui (Badge, Button, DropdownMenu, Input, Select, Tabs, Tooltip)
+- Zustand (state management)
 - @tanstack/react-virtual (virtual scrolling)
 - lucide-react (icons)
 - Vite
 
-## Key Files
-- `src/main.tsx` — Entry point (no StrictMode)
-- `src/App.tsx` — Main layout (header, stats bar, log feed, project filter)
-- `src/hooks/use-socket.ts` — WebSocket connection + REST pagination
-- `src/hooks/use-stats.ts` — Client-side stats computation (useMemo from logs)
-- `src/components/log-feed.tsx` — Virtual scrolled log list with infinite scroll
-- `src/components/log-entry.tsx` — Log row + accordion detail panel + JSON tree-view
-- `src/components/stats-bar.tsx` — Stats bar (total, success%, errors, avg, req/min)
-- `src/components/project-filter.tsx` — Project dropdown filter
-- `src/types.ts` — Client-side type definitions
-- `src/index.css` — Tailwind import + dark scrollbar styles
+## Architecture
+- **Stores** (zustand): `use-log-store`, `use-filter-store`, `use-connection-store`
+- **Services**: `http.ts` (typed fetch wrapper), `websocket.ts` (WebSocketService class)
+- **Hooks**: `use-websocket` (WS→stores), `use-log-loader` (REST→stores), `use-filtered-logs`, `use-stats`
+- **Components**: Small, focused. shadcn/ui for common UI primitives.
+- Path alias: `@/` maps to `src/`
 
-## Features
-- **Live feed**: WebSocket for realtime log updates
-- **Virtual scrolling**: @tanstack/react-virtual, renders only visible rows
-- **Infinite scroll**: Loads older pages (200 per page) on scroll up
-- **Project filter**: Dropdown filters by project (server-side API + client-side WS)
-- **Accordion detail**: Click row to expand Request/Response/Error tabs
-- **JSON tree-view**: Recursive collapse/expand with syntax coloring
-- **Auto-scroll**: Toggle button, scrolls to bottom on new logs
-- **Action menu**: Resend, Copy Request, Copy as cURL, Copy Response
-- **Stats bar**: Computed client-side from loaded logs (no polling)
-- **Error highlighting**: Red background for 4xx/5xx/failed requests
-- **Dark theme**: Custom scrollbar, brightness hover effects
+## Key Files
+- `src/App.tsx` — Slim orchestrator (~20 lines)
+- `src/services/http.ts` — Typed fetch wrapper with base URL
+- `src/services/websocket.ts` — WebSocketService class with reconnect
+- `src/stores/use-log-store.ts` — Logs, pending, hasMore, ready
+- `src/stores/use-filter-store.ts` — Project, search, projects list
+- `src/stores/use-connection-store.ts` — Connected, autoScroll
+- `src/hooks/use-websocket.ts` — WS lifecycle → store actions
+- `src/hooks/use-log-loader.ts` — REST fetch on filter change + loadMore
+- `src/hooks/use-filtered-logs.ts` — Client-side filtering (useMemo)
+- `src/hooks/use-stats.ts` — Stats computation (useMemo)
+- `src/components/header.tsx` — Logo, connection status, search, filter, clear
+- `src/components/stats-bar.tsx` — Stats display + auto-scroll toggle
+- `src/components/log-feed.tsx` — Virtual scroll list
+- `src/components/log-entry.tsx` — CompletedEntry + PendingEntry
+- `src/components/detail-panel.tsx` — Request/Response/Error tabs (shadcn Tabs)
+- `src/components/action-menu.tsx` — Resend, Copy (shadcn DropdownMenu)
+- `src/components/json-tree.tsx` — Recursive JSON viewer
+- `src/components/status-badge.tsx` — HTTP status (shadcn Badge)
+- `src/components/method-badge.tsx` — HTTP method
+- `src/components/protocol-badge.tsx` — HTTP/HTTPS
+- `src/components/proxy-badge.tsx` — Proxy info (shadcn Tooltip)
+- `src/components/ui/*` — shadcn auto-generated components
 
 ## Data Flow
-1. On load: fetch `GET /api/logs?limit=200` (+ project filter if set)
-2. Connect WebSocket to `/ws` for realtime updates
-3. New logs appended to bottom, pending entries shown with spinner
-4. Scroll up triggers `loadMore()` → fetches next 200 older logs
-5. Project change resets logs and re-fetches from API
-6. Stats recomputed on every log change via useMemo
+1. `useWebSocket()` connects WS, pushes messages into zustand stores
+2. `useLogLoader()` fetches initial logs + handles filter changes via REST
+3. `useFilteredLogs()` applies client-side filtering (project + search)
+4. `useStats()` computes stats from filtered logs
+5. Components read directly from stores — no prop drilling
 
 ## Environment
 - `VITE_SERVER_URL` — Server URL (default: http://localhost:3100)

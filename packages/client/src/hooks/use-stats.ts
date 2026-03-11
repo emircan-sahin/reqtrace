@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import type { RequestLog, Stats } from '../types';
+import { useFilteredLogs } from './use-filtered-logs';
+import type { Stats } from '@/types';
 
 const EMPTY_STATS: Stats = {
   total_requests: 0,
@@ -11,9 +12,11 @@ const EMPTY_STATS: Stats = {
   requests_per_minute: 0,
 };
 
-export function useStats(logs: RequestLog[]): Stats {
+export function useStats(): Stats {
+  const { filteredLogs } = useFilteredLogs();
+
   return useMemo(() => {
-    if (logs.length === 0) return EMPTY_STATS;
+    if (filteredLogs.length === 0) return EMPTY_STATS;
 
     let successCount = 0;
     let errorCount = 0;
@@ -21,7 +24,7 @@ export function useStats(logs: RequestLog[]): Stats {
     const methods: Record<string, number> = {};
     const statusCodes: Record<string, number> = {};
 
-    for (const log of logs) {
+    for (const log of filteredLogs) {
       if (log.success) successCount++;
       else errorCount++;
 
@@ -36,18 +39,18 @@ export function useStats(logs: RequestLog[]): Stats {
 
     const now = Date.now();
     const oneMinuteAgo = now - 60_000;
-    const recentCount = logs.filter(
+    const recentCount = filteredLogs.filter(
       (l) => new Date(l.timestamp).getTime() >= oneMinuteAgo,
     ).length;
 
     return {
-      total_requests: logs.length,
+      total_requests: filteredLogs.length,
       success_count: successCount,
       error_count: errorCount,
-      avg_duration_ms: Math.round(totalDuration / logs.length),
+      avg_duration_ms: Math.round(totalDuration / filteredLogs.length),
       methods,
       status_codes: statusCodes,
       requests_per_minute: recentCount,
     };
-  }, [logs]);
+  }, [filteredLogs]);
 }

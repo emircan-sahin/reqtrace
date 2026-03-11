@@ -1,15 +1,10 @@
 import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import type { RequestLog, RequestStart } from '../types';
+import { useFilteredLogs } from '@/hooks/use-filtered-logs';
+import { useLogStore } from '@/stores/use-log-store';
+import { useConnectionStore } from '@/stores/use-connection-store';
 import { PendingEntry, CompletedEntry } from './log-entry';
-
-interface LogFeedProps {
-  logs: RequestLog[];
-  pending: Map<string, RequestStart>;
-  autoScroll: boolean;
-  hasMore: boolean;
-  loadMore: () => void;
-}
+import type { RequestLog, RequestStart } from '@/types';
 
 type FeedItem =
   | { kind: 'log'; data: RequestLog }
@@ -17,18 +12,21 @@ type FeedItem =
 
 const ROW_HEIGHT = 52;
 
-export function LogFeed({ logs, pending, autoScroll, hasMore, loadMore }: LogFeedProps) {
+export function LogFeed({ loadMore }: { loadMore: () => void }) {
+  const { filteredLogs, filteredPending } = useFilteredLogs();
+  const autoScroll = useConnectionStore((s) => s.autoScroll);
+  const hasMore = useLogStore((s) => s.hasMore);
   const containerRef = useRef<HTMLDivElement>(null);
-  const pendingEntries = Array.from(pending.values());
-  const isEmpty = pendingEntries.length === 0 && logs.length === 0;
+  const pendingEntries = Array.from(filteredPending.values());
+  const isEmpty = pendingEntries.length === 0 && filteredLogs.length === 0;
 
   const items: FeedItem[] = useMemo(() => {
-    const result: FeedItem[] = logs.map((data) => ({ kind: 'log', data }));
+    const result: FeedItem[] = filteredLogs.map((data) => ({ kind: 'log', data }));
     for (const data of pendingEntries) {
       result.push({ kind: 'pending', data });
     }
     return result;
-  }, [logs, pendingEntries]);
+  }, [filteredLogs, pendingEntries]);
 
   const virtualizer = useVirtualizer({
     count: items.length,
@@ -61,7 +59,7 @@ export function LogFeed({ logs, pending, autoScroll, hasMore, loadMore }: LogFee
 
   if (isEmpty) {
     return (
-      <div className="flex-1 flex items-center justify-center text-zinc-600">
+      <div className="flex-1 flex items-center justify-center text-muted-foreground">
         <div className="text-center">
           <p className="text-lg">No requests yet</p>
           <p className="text-sm mt-1">Waiting for incoming requests...</p>
