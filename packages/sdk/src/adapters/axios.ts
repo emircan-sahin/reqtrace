@@ -103,8 +103,7 @@ export class AxiosAdapter implements ReqtraceAdapter {
     const start = reqConfig.__reqtrace_start ?? Date.now();
     const duration_ms = Date.now() - start;
 
-    const rawProxy = reqConfig.proxy;
-    const proxy = rawProxy && typeof rawProxy === 'object' ? rawProxy : null;
+    const { host: proxyHost, port: proxyPort } = this.extractProxy(reqConfig);
     const coreConfig = this.core.getConfig();
 
     const log: RequestLog = {
@@ -114,8 +113,8 @@ export class AxiosAdapter implements ReqtraceAdapter {
       method,
       status: response?.status ?? null,
       duration_ms,
-      proxy_host: proxy ? proxy.host : null,
-      proxy_port: proxy ? proxy.port : null,
+      proxy_host: proxyHost,
+      proxy_port: proxyPort,
       response_size_bytes: response
         ? this.getResponseSize(response)
         : null,
@@ -136,6 +135,24 @@ export class AxiosAdapter implements ReqtraceAdapter {
     }
 
     this.core.handleLog(log);
+  }
+
+  private extractProxy(reqConfig: InternalAxiosRequestConfig): { host: string | null; port: number | null } {
+    // 1. Native axios proxy config
+    const rawProxy = reqConfig.proxy;
+    if (rawProxy && typeof rawProxy === 'object') {
+      return { host: rawProxy.host, port: rawProxy.port };
+    }
+
+    // 2. httpsAgent/httpAgent with proxy (e.g. HttpsProxyAgent, HttpProxyAgent)
+    const agent = (reqConfig as any).httpsAgent ?? (reqConfig as any).httpAgent;
+    const proxyUrl = agent?.proxy;
+    if (proxyUrl && typeof proxyUrl === 'object' && 'hostname' in proxyUrl) {
+      const port = proxyUrl.port ? Number(proxyUrl.port) : null;
+      return { host: proxyUrl.hostname, port };
+    }
+
+    return { host: null, port: null };
   }
 
   private getResponseSize(response: AxiosResponse): number {

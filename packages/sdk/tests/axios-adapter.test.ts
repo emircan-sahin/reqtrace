@@ -181,6 +181,21 @@ describe('AxiosAdapter', () => {
       expect(log.proxy_port).toBe(8080);
     });
 
+    it('captures proxy from httpsAgent (HttpsProxyAgent pattern)', async () => {
+      mockAxiosSuccess(instance);
+      adapter.install();
+
+      await instance.get('https://example.com', {
+        httpsAgent: {
+          proxy: new URL('http://10.0.0.1:3128'),
+        },
+      } as any);
+
+      const log = logs[0];
+      expect(log.proxy_host).toBe('10.0.0.1');
+      expect(log.proxy_port).toBe(3128);
+    });
+
     it('sets proxy to null when not used', async () => {
       mockAxiosSuccess(instance);
       adapter.install();
