@@ -47,44 +47,92 @@ function rowToSummary(row: Record<string, unknown>): LogSummary {
 
 const MAX_PER_PROJECT = 5_000;
 const CLEANUP_INTERVAL = 100;
+const FLUSH_INTERVAL = 200;
+const FLUSH_MAX = 50;
+
+const COLUMNS = `id, project, url, method, status, duration_ms,
+  proxy_host, proxy_port, response_size_bytes,
+  request_headers, response_headers,
+  request_body, response_body,
+  error_message, success, timestamp`;
 
 export class PostgresStore implements LogStore {
   private insertCounts = new Map<string, number>();
+  private buffer: { log: RequestLog; resolve: () => void; reject: (err: unknown) => void }[] = [];
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(private pool: pg.Pool) {}
 
-  async add(log: RequestLog): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO request_logs (
-        id, project, url, method, status, duration_ms,
-        proxy_host, proxy_port, response_size_bytes,
-        request_headers, response_headers,
-        request_body, response_body,
-        error_message, success, timestamp
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
-      ON CONFLICT (id) DO NOTHING`,
-      [
+  add(log: RequestLog): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.buffer.push({ log, resolve, reject });
+
+      if (this.buffer.length >= FLUSH_MAX) {
+        this.flush();
+      } else if (!this.flushTimer) {
+        this.flushTimer = setTimeout(() => this.flush(), FLUSH_INTERVAL);
+      }
+    });
+  }
+
+  private async flush(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+
+    if (this.buffer.length === 0) return;
+
+    const batch = this.buffer.splice(0);
+    const values: string[] = [];
+    const params: unknown[] = [];
+
+    for (let i = 0; i < batch.length; i++) {
+      const log = batch[i].log;
+      const offset = i * 16;
+      values.push(`(${Array.from({ length: 16 }, (_, j) => `$${offset + j + 1}`).join(',')})`);
+      params.push(
         log.id, log.project, log.url, log.method, log.status, log.duration_ms,
         log.proxy_host, log.proxy_port, log.response_size_bytes,
         JSON.stringify(log.request_headers), JSON.stringify(log.response_headers),
         log.request_body ?? null, log.response_body ?? null,
         log.error_message, log.success, log.timestamp,
-      ],
-    );
-
-    const count = (this.insertCounts.get(log.project) ?? 0) + 1;
-    this.insertCounts.set(log.project, count);
-
-    if (count % CLEANUP_INTERVAL === 0) {
-      await this.pool.query(
-        `DELETE FROM request_logs WHERE id IN (
-          SELECT id FROM request_logs
-          WHERE project = $1
-          ORDER BY timestamp DESC
-          OFFSET $2
-        )`,
-        [log.project, MAX_PER_PROJECT],
       );
+    }
+
+    try {
+      await this.pool.query(
+        `INSERT INTO request_logs (${COLUMNS}) VALUES ${values.join(',')} ON CONFLICT (id) DO NOTHING`,
+        params,
+      );
+
+      for (const entry of batch) {
+        const count = (this.insertCounts.get(entry.log.project) ?? 0) + 1;
+        this.insertCounts.set(entry.log.project, count);
+      }
+
+      const projectsToClean = new Set<string>();
+      for (const entry of batch) {
+        if ((this.insertCounts.get(entry.log.project) ?? 0) % CLEANUP_INTERVAL === 0) {
+          projectsToClean.add(entry.log.project);
+        }
+      }
+
+      for (const project of projectsToClean) {
+        await this.pool.query(
+          `DELETE FROM request_logs WHERE id IN (
+            SELECT id FROM request_logs
+            WHERE project = $1
+            ORDER BY timestamp DESC
+            OFFSET $2
+          )`,
+          [project, MAX_PER_PROJECT],
+        );
+      }
+
+      for (const entry of batch) entry.resolve();
+    } catch (err) {
+      for (const entry of batch) entry.reject(err);
     }
   }
 
@@ -338,6 +386,7 @@ export class PostgresStore implements LogStore {
   }
 
   async close(): Promise<void> {
+    await this.flush();
     await this.pool.end();
   }
 }
