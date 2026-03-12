@@ -1,5 +1,8 @@
+import { existsSync } from 'fs';
+import { join } from 'path';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import websocket from '@fastify/websocket';
 import { InMemoryStore } from './store/index.js';
 import { BroadcastManager } from './ws/index.js';
@@ -43,6 +46,18 @@ export async function createApp(opts?: AppOptions) {
   app.register(healthRoutes);
   app.register(logsRoutes(store, broadcast), { prefix: '/api' });
   app.register(statsRoutes(store), { prefix: '/api' });
+
+  const publicDir = join(process.cwd(), 'public');
+  if (existsSync(publicDir)) {
+    await app.register(fastifyStatic, { root: publicDir });
+    app.setNotFoundHandler((req, reply) => {
+      if (req.url.startsWith('/api/') || req.url.startsWith('/ws')) {
+        reply.code(404).send({ error: 'Not Found' });
+      } else {
+        reply.sendFile('index.html');
+      }
+    });
+  }
 
   return app;
 }
