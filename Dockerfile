@@ -13,7 +13,7 @@ COPY packages/server packages/server
 ENV VITE_SERVER_URL=""
 RUN pnpm --filter @reqtrace/client build
 RUN pnpm --filter @reqtrace/server build
-RUN pnpm --filter @reqtrace/server deploy --prod /app/deploy
+RUN pnpm --filter @reqtrace/server deploy --legacy --prod /app/deploy
 
 FROM node:22-alpine
 WORKDIR /app
