@@ -60,11 +60,21 @@ export interface StatsResult {
   requests_per_minute: number;
 }
 
+export interface ChartBucket {
+  time: string;
+  project: string;
+  total: number;
+  success: number;
+  errors: number;
+  avg_duration: number;
+}
+
 export interface LogStore {
   add(log: RequestLog): Promise<void>;
   list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }>;
   projects(): Promise<string[]>;
-  stats(): Promise<StatsResult>;
+  stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
+  chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]>;
   count(): Promise<number>;
   clear(): Promise<void>;
   close(): Promise<void>;

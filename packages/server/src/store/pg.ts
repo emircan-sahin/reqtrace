@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import type { RequestLog, LogFilter, StatsResult, LogStore } from '../types.js';
+import type { RequestLog, LogFilter, StatsResult, ChartBucket, LogStore } from '../types.js';
 
 function rowToLog(row: Record<string, unknown>): RequestLog {
   return {
@@ -132,28 +132,55 @@ export class PostgresStore implements LogStore {
     return { logs: dataResult.rows.map(rowToLog), total };
   }
 
-  async stats(): Promise<StatsResult> {
-    const result = await this.pool.query(`
-      WITH agg AS (
+  async stats(filter?: { project?: string; search?: string }): Promise<StatsResult> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (filter?.project) {
+      conditions.push(`project = $${idx++}`);
+      params.push(filter.project);
+    }
+    if (filter?.search) {
+      const q = `%${filter.search}%`;
+      conditions.push(`(
+        url ILIKE $${idx} OR
+        method ILIKE $${idx} OR
+        CAST(status AS TEXT) LIKE $${idx} OR
+        error_message ILIKE $${idx} OR
+        proxy_host ILIKE $${idx}
+      )`);
+      params.push(q);
+      idx++;
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const andStatus = conditions.length > 0
+      ? `WHERE ${conditions.join(' AND ')} AND status IS NOT NULL`
+      : 'WHERE status IS NOT NULL';
+
+    const result = await this.pool.query(
+      `WITH agg AS (
         SELECT
           COUNT(*)::int AS total_requests,
           COUNT(*) FILTER (WHERE success = true)::int AS success_count,
           COUNT(*) FILTER (WHERE success = false)::int AS error_count,
           COALESCE(ROUND(AVG(duration_ms))::int, 0) AS avg_duration_ms,
           COUNT(*) FILTER (WHERE timestamp >= NOW() - INTERVAL '1 minute')::int AS requests_per_minute
-        FROM request_logs
+        FROM request_logs ${where}
       ),
       methods AS (
         SELECT COALESCE(json_object_agg(method, cnt), '{}') AS methods
-        FROM (SELECT method, COUNT(*)::int AS cnt FROM request_logs GROUP BY method) t
+        FROM (SELECT method, COUNT(*)::int AS cnt FROM request_logs ${where} GROUP BY method) t
       ),
       status_codes AS (
         SELECT COALESCE(json_object_agg(status::text, cnt), '{}') AS status_codes
-        FROM (SELECT status, COUNT(*)::int AS cnt FROM request_logs WHERE status IS NOT NULL GROUP BY status) t
+        FROM (SELECT status, COUNT(*)::int AS cnt FROM request_logs ${andStatus} GROUP BY status) t
       )
       SELECT agg.*, methods.methods, status_codes.status_codes
-      FROM agg, methods, status_codes
-    `);
+      FROM agg, methods, status_codes`,
+      params,
+    );
 
     const row = result.rows[0];
     return {
@@ -165,6 +192,54 @@ export class PostgresStore implements LogStore {
       status_codes: typeof row.status_codes === 'string' ? JSON.parse(row.status_codes) : row.status_codes,
       requests_per_minute: row.requests_per_minute,
     };
+  }
+
+  async chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (filter?.project) {
+      conditions.push(`project = $${idx++}`);
+      params.push(filter.project);
+    }
+    if (filter?.search) {
+      const q = `%${filter.search}%`;
+      conditions.push(`(
+        url ILIKE $${idx} OR
+        method ILIKE $${idx} OR
+        CAST(status AS TEXT) LIKE $${idx} OR
+        error_message ILIKE $${idx} OR
+        proxy_host ILIKE $${idx}
+      )`);
+      params.push(q);
+      idx++;
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+    const result = await this.pool.query(
+      `SELECT
+        date_trunc('minute', timestamp) AS time,
+        project,
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE success = true)::int AS success,
+        COUNT(*) FILTER (WHERE success = false)::int AS errors,
+        COALESCE(ROUND(AVG(duration_ms))::int, 0) AS avg_duration
+      FROM request_logs ${where}
+      GROUP BY time, project
+      ORDER BY time ASC`,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      time: row.time instanceof Date ? row.time.toISOString() : row.time as string,
+      project: row.project as string,
+      total: row.total as number,
+      success: row.success as number,
+      errors: row.errors as number,
+      avg_duration: row.avg_duration as number,
+    }));
   }
 
   async projects(): Promise<string[]> {

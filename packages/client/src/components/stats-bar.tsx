@@ -1,4 +1,4 @@
-import { ArrowDown } from 'lucide-react';
+import { ArrowDown, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useStats } from '@/hooks/use-stats';
 import { useConnectionStore } from '@/stores/use-connection-store';
@@ -7,6 +7,8 @@ export function StatsBar() {
   const stats = useStats();
   const autoScroll = useConnectionStore((s) => s.autoScroll);
   const toggleAutoScroll = useConnectionStore((s) => s.toggleAutoScroll);
+  const chartsOpen = useConnectionStore((s) => s.chartsOpen);
+  const toggleCharts = useConnectionStore((s) => s.toggleCharts);
 
   const successRate =
     stats.total_requests > 0
@@ -21,9 +23,17 @@ export function StatsBar() {
       <Stat label="Avg" value={`${stats.avg_duration_ms}ms`} color="text-blue-400" />
       <Stat label="Req/min" value={stats.requests_per_minute} color="text-amber-400" />
       <Button
-        variant={autoScroll ? 'default' : 'outline'}
+        variant={chartsOpen ? 'default' : 'outline'}
         size="icon-xs"
         className="ml-auto"
+        onClick={toggleCharts}
+        title={chartsOpen ? 'Hide charts' : 'Show charts'}
+      >
+        <BarChart3 size={14} />
+      </Button>
+      <Button
+        variant={autoScroll ? 'default' : 'outline'}
+        size="icon-xs"
         onClick={toggleAutoScroll}
         title={autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
       >

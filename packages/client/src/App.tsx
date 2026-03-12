@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { get } from '@/services/http';
 import { Header } from '@/components/header';
 import { StatsBar } from '@/components/stats-bar';
+import { ChartsPanel } from '@/components/charts-panel';
 import { LogFeed } from '@/components/log-feed';
 import { AuthPage } from '@/components/auth-page';
 
@@ -17,6 +18,7 @@ function Dashboard() {
     <div className="h-screen flex flex-col">
       <Header />
       <StatsBar />
+      <ChartsPanel />
       <LogFeed loadMore={loadMore} />
     </div>
   );
