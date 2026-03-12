@@ -194,7 +194,9 @@ describe('AxiosAdapter', () => {
   });
 
   describe('body capture', () => {
-    it('does not capture bodies by default', async () => {
+    it('does not capture bodies when captureBody is false', async () => {
+      core = new ReqtraceCore({ captureBody: false }, handler);
+      adapter = new AxiosAdapter(instance, core);
       mockAxiosSuccess(instance, { secret: 'data' });
       adapter.install();
 
@@ -203,6 +205,17 @@ describe('AxiosAdapter', () => {
       const log = logs[0];
       expect(log.request_body).toBeUndefined();
       expect(log.response_body).toBeUndefined();
+    });
+
+    it('captures bodies by default', async () => {
+      mockAxiosSuccess(instance, { secret: 'data' });
+      adapter.install();
+
+      await instance.post('https://example.com', { payload: 'test' });
+
+      const log = logs[0];
+      expect(log.request_body).toBeDefined();
+      expect(log.response_body).toBeDefined();
     });
 
     it('captures bodies when captureBody is true', async () => {
