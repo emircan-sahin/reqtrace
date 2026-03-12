@@ -1,14 +1,14 @@
 import { create } from 'zustand';
-import type { RequestLog, RequestStart } from '@/types';
+import type { LogSummary, RequestStart } from '@/types';
 
 interface LogState {
-  logs: RequestLog[];
+  logs: LogSummary[];
   pending: Map<string, RequestStart>;
   hasMore: boolean;
   ready: boolean;
-  setLogs: (logs: RequestLog[]) => void;
-  appendLog: (log: RequestLog) => void;
-  prependLogs: (older: RequestLog[]) => void;
+  setLogs: (logs: LogSummary[]) => void;
+  appendLog: (log: LogSummary) => void;
+  prependLogs: (older: LogSummary[]) => void;
   addPending: (entry: RequestStart) => void;
   removePending: (id: string) => void;
   setHasMore: (v: boolean) => void;

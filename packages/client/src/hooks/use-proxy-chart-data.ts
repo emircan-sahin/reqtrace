@@ -1,7 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { get } from '@/services/http';
 import { useFilterStore } from '@/stores/use-filter-store';
-import type { RequestLog } from '@/types';
+import type { LogSummary } from '@/types';
 
 interface ProxyBucket {
   proxy: string;
@@ -82,7 +82,7 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
   };
 }
 
-export function useProxyChartData(filteredLogs: RequestLog[]) {
+export function useProxyChartData(filteredLogs: LogSummary[]) {
   const selectedProject = useFilterStore((s) => s.selectedProject);
   const search = useFilterStore((s) => s.search);
   const [serverBuckets, setServerBuckets] = useState<ProxyBucket[]>([]);

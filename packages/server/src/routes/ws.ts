@@ -55,7 +55,8 @@ export function wsRoute(opts: WsRouteOptions) {
           } else if (msg.type === 'request_end') {
             const { type: _, ...log } = msg;
             await store.add(log);
-            broadcast.broadcast(msg);
+            const { request_headers, response_headers, request_body, response_body, ...summary } = log;
+            broadcast.broadcast({ type: 'request_end', ...summary });
           }
         } catch (err) {
           if (err instanceof SyntaxError) return;

@@ -78,9 +78,12 @@ export interface ProxyBucket {
   total_size: number;
 }
 
+export type LogSummary = Omit<RequestLog, 'request_headers' | 'response_headers' | 'request_body' | 'response_body'>;
+
 export interface LogStore {
   add(log: RequestLog): Promise<void>;
-  list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }>;
+  getById(id: string): Promise<RequestLog | null>;
+  list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }>;
   projects(): Promise<string[]>;
   stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
   chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]>;

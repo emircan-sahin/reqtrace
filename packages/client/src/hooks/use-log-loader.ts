@@ -2,12 +2,12 @@ import { useEffect, useCallback, useRef } from 'react';
 import { get } from '@/services/http';
 import { useLogStore } from '@/stores/use-log-store';
 import { useFilterStore } from '@/stores/use-filter-store';
-import type { RequestLog } from '@/types';
+import type { LogSummary } from '@/types';
 
 const PAGE_SIZE = 200;
 
 interface LogsResponse {
-  logs: RequestLog[];
+  logs: LogSummary[];
 }
 
 interface ProjectsResponse {

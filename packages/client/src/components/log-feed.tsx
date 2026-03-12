@@ -4,10 +4,10 @@ import { useFilteredLogs } from '@/hooks/use-filtered-logs';
 import { useLogStore } from '@/stores/use-log-store';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import { PendingEntry, CompletedEntry } from './log-entry';
-import type { RequestLog, RequestStart } from '@/types';
+import type { LogSummary, RequestStart } from '@/types';
 
 type FeedItem =
-  | { kind: 'log'; data: RequestLog }
+  | { kind: 'log'; data: LogSummary }
   | { kind: 'pending'; data: RequestStart };
 
 const ROW_HEIGHT = 52;
@@ -123,19 +123,18 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const item = items[virtualRow.index];
-              const itemId = item.data.id;
               return (
                 <div
-                  key={itemId}
+                  key={virtualRow.key}
                   className="absolute top-0 left-0 w-full"
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                   ref={virtualizer.measureElement}
                   data-index={virtualRow.index}
                 >
                   {item.kind === 'log' ? (
-                    <CompletedEntry log={item.data} />
+                    <CompletedEntry key={item.data.id} log={item.data} />
                   ) : (
-                    <PendingEntry entry={item.data} />
+                    <PendingEntry key={item.data.id} entry={item.data} />
                   )}
                 </div>
               );

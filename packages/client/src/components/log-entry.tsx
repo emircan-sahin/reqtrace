@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import type { RequestLog, RequestStart } from '@/types';
+import type { LogSummary, RequestStart } from '@/types';
 import { StatusBadge } from './status-badge';
 import { MethodBadge } from './method-badge';
 import { ProtocolBadge } from './protocol-badge';
 import { ProxyBadge } from './proxy-badge';
-import { ActionMenu } from './action-menu';
 import { DetailPanel } from './detail-panel';
 
 export function PendingEntry({ entry }: { entry: RequestStart }) {
@@ -30,7 +29,7 @@ export function PendingEntry({ entry }: { entry: RequestStart }) {
   );
 }
 
-export function CompletedEntry({ log }: { log: RequestLog }) {
+export function CompletedEntry({ log }: { log: LogSummary }) {
   const [expanded, setExpanded] = useState(false);
   const protocol = getProtocol(log.url);
   const hasProxy = log.proxy_host !== null;
@@ -60,10 +59,9 @@ export function CompletedEntry({ log }: { log: RequestLog }) {
         <span className={`text-xs font-mono w-16 text-right ${durationColor(log.duration_ms)}`}>
           {log.duration_ms}ms
         </span>
-        <ActionMenu log={log} />
       </div>
 
-      {expanded && <DetailPanel log={log} />}
+      {expanded && <DetailPanel logId={log.id} summary={log} />}
     </div>
   );
 }

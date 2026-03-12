@@ -15,7 +15,8 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
     app.post<{ Body: RequestLog }>('/logs', async (request, reply) => {
       const log = request.body;
       await store.add(log);
-      broadcast.broadcast({ type: 'request_end', ...log });
+      const { request_headers, response_headers, request_body, response_body, ...summary } = log;
+      broadcast.broadcast({ type: 'request_end', ...summary });
       return reply.code(201).send({ ok: true });
     });
 
@@ -36,6 +37,12 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
       };
 
       return await store.list(filter);
+    });
+
+    app.get<{ Params: { id: string } }>('/logs/:id', async (request, reply) => {
+      const log = await store.getById(request.params.id);
+      if (!log) return reply.code(404).send({ error: 'Not found' });
+      return log;
     });
 
     app.delete('/logs', async () => {

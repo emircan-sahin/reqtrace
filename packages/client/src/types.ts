@@ -7,7 +7,7 @@ export interface RequestStart {
   timestamp: string;
 }
 
-export interface RequestLog {
+export interface LogSummary {
   id: string;
   project: string;
   url: string;
@@ -17,16 +17,19 @@ export interface RequestLog {
   proxy_host: string | null;
   proxy_port: number | null;
   response_size_bytes: number | null;
-  request_headers: Record<string, string>;
-  response_headers: Record<string, string>;
-  request_body?: string;
-  response_body?: string;
   error_message: string | null;
   success: boolean;
   timestamp: string;
 }
 
-export interface RequestEnd extends RequestLog {
+export interface RequestLog extends LogSummary {
+  request_headers: Record<string, string>;
+  response_headers: Record<string, string>;
+  request_body?: string;
+  response_body?: string;
+}
+
+export interface RequestEnd extends LogSummary {
   type: 'request_end';
 }
 

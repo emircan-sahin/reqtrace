@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { get } from '@/services/http';
 import { useFilterStore } from '@/stores/use-filter-store';
 import { useConnectionStore } from '@/stores/use-connection-store';
-import type { RequestLog } from '@/types';
+import type { LogSummary } from '@/types';
 
 interface ChartBucket {
   time: string;
@@ -95,7 +95,7 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>, intervalSec: nu
   };
 }
 
-export function useChartData(filteredLogs: RequestLog[]) {
+export function useChartData(filteredLogs: LogSummary[]) {
   const selectedProject = useFilterStore((s) => s.selectedProject);
   const search = useFilterStore((s) => s.search);
   const chartInterval = useConnectionStore((s) => s.chartInterval);

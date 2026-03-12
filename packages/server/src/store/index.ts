@@ -1,4 +1,9 @@
-import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore } from '../types.js';
+import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore, LogSummary } from '../types.js';
+
+function toSummary(log: RequestLog): LogSummary {
+  const { request_headers, response_headers, request_body, response_body, ...summary } = log;
+  return summary;
+}
 
 const MAX_ENTRIES = 10_000;
 
@@ -12,7 +17,11 @@ export class InMemoryStore implements LogStore {
     }
   }
 
-  async list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }> {
+  async getById(id: string): Promise<RequestLog | null> {
+    return this.logs.find((l) => l.id === id) ?? null;
+  }
+
+  async list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }> {
     let result = this.logs;
 
     if (filter.project) {
@@ -58,7 +67,7 @@ export class InMemoryStore implements LogStore {
     const limit = filter.limit ?? 100;
     result = result.slice(offset, offset + limit);
 
-    return { logs: result, total };
+    return { logs: result.map(toSummary), total };
   }
 
   async stats(filter?: { project?: string; search?: string }): Promise<StatsResult> {

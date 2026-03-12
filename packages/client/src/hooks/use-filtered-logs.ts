@@ -1,9 +1,9 @@
 import { useMemo, useCallback } from 'react';
 import { useLogStore } from '@/stores/use-log-store';
 import { useFilterStore } from '@/stores/use-filter-store';
-import type { RequestLog, RequestStart } from '@/types';
+import type { LogSummary, RequestStart } from '@/types';
 
-export function useFilteredLogs(): { filteredLogs: RequestLog[]; filteredPending: Map<string, RequestStart> } {
+export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending: Map<string, RequestStart> } {
   const logs = useLogStore((s) => s.logs);
   const pending = useLogStore((s) => s.pending);
   const selectedProject = useFilterStore((s) => s.selectedProject);

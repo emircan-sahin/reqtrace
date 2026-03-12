@@ -3,7 +3,7 @@ import { WebSocketService } from '@/services/websocket';
 import { useLogStore } from '@/stores/use-log-store';
 import { useFilterStore } from '@/stores/use-filter-store';
 import { useConnectionStore } from '@/stores/use-connection-store';
-import type { RequestLog, RequestStart, WsMessage } from '@/types';
+import type { LogSummary, RequestStart, WsMessage } from '@/types';
 
 const FLUSH_INTERVAL = 500;
 const MAX_BUFFER = 200;
@@ -12,7 +12,7 @@ export function useWebSocket() {
   useEffect(() => {
     let pendingAdds: RequestStart[] = [];
     let pendingRemoveIds: string[] = [];
-    let pendingLogs: RequestLog[] = [];
+    let pendingLogs: LogSummary[] = [];
     let pendingProjects = new Set<string>();
     let timer: ReturnType<typeof setInterval> | null = null;
 

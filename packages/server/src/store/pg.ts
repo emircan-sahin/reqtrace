@@ -1,5 +1,7 @@
 import type pg from 'pg';
-import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore } from '../types.js';
+import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore, LogSummary } from '../types.js';
+
+const SUMMARY_COLUMNS = `id, project, url, method, status, duration_ms, proxy_host, proxy_port, response_size_bytes, error_message, success, timestamp`;
 
 function rowToLog(row: Record<string, unknown>): RequestLog {
   return {
@@ -16,6 +18,25 @@ function rowToLog(row: Record<string, unknown>): RequestLog {
     response_headers: row.response_headers as Record<string, string>,
     request_body: row.request_body as string | undefined,
     response_body: row.response_body as string | undefined,
+    error_message: row.error_message as string | null,
+    success: row.success as boolean,
+    timestamp: row.timestamp instanceof Date
+      ? row.timestamp.toISOString()
+      : (row.timestamp as string),
+  };
+}
+
+function rowToSummary(row: Record<string, unknown>): LogSummary {
+  return {
+    id: row.id as string,
+    project: row.project as string,
+    url: row.url as string,
+    method: row.method as string,
+    status: row.status as number | null,
+    duration_ms: row.duration_ms as number,
+    proxy_host: row.proxy_host as string | null,
+    proxy_port: row.proxy_port as number | null,
+    response_size_bytes: row.response_size_bytes as number | null,
     error_message: row.error_message as string | null,
     success: row.success as boolean,
     timestamp: row.timestamp instanceof Date
@@ -67,7 +88,16 @@ export class PostgresStore implements LogStore {
     }
   }
 
-  async list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }> {
+  async getById(id: string): Promise<RequestLog | null> {
+    const result = await this.pool.query(
+      `SELECT * FROM request_logs WHERE id = $1`,
+      [id],
+    );
+    if (result.rows.length === 0) return null;
+    return rowToLog(result.rows[0]);
+  }
+
+  async list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -125,11 +155,11 @@ export class PostgresStore implements LogStore {
     const offset = filter.offset ?? 0;
 
     const dataResult = await this.pool.query(
-      `SELECT * FROM request_logs ${where} ORDER BY timestamp DESC LIMIT $${idx++} OFFSET $${idx++}`,
+      `SELECT ${SUMMARY_COLUMNS} FROM request_logs ${where} ORDER BY timestamp DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...params, limit, offset],
     );
 
-    return { logs: dataResult.rows.map(rowToLog), total };
+    return { logs: dataResult.rows.map(rowToSummary), total };
   }
 
   async stats(filter?: { project?: string; search?: string }): Promise<StatsResult> {
