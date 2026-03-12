@@ -91,18 +91,21 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
 
   return (
     <div
-      ref={containerRef}
-      className="flex-1 overflow-y-auto relative"
+      className="flex-1 relative"
       onMouseEnter={() => setHoverPaused(true)}
       onMouseLeave={() => setHoverPaused(false)}
     >
       {paused && (
-        <div className="sticky top-0 left-0 right-0 z-10 flex justify-center pointer-events-none py-2">
+        <div className="absolute top-2 left-0 right-0 z-10 flex justify-center pointer-events-none">
           <span className="bg-amber-500/90 text-white text-xs font-medium px-3 py-1 rounded-full shadow-sm">
             Paused
           </span>
         </div>
       )}
+      <div
+        ref={containerRef}
+        className="h-full overflow-y-auto"
+      >
       {isEmpty ? (
         <div className="h-full flex items-center justify-center text-muted-foreground">
           <div className="text-center">
@@ -142,6 +145,7 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
           </div>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -61,6 +61,27 @@ export class WebSocketService {
     };
   }
 
+  reconnect() {
+    if (this.disposed) return;
+    if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+    this.reconnectDelay = RECONNECT_BASE;
+    // Detach old handlers before closing to prevent onclose from
+    // nulling the new WS reference and scheduling a duplicate reconnect
+    const old = this.ws;
+    this.ws = null;
+    if (old) {
+      old.onclose = null;
+      old.onerror = null;
+      old.onmessage = null;
+      old.close();
+    }
+    this.connect();
+  }
+
+  isConnected(): boolean {
+    return this.ws?.readyState === WebSocket.OPEN;
+  }
+
   dispose() {
     this.disposed = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
