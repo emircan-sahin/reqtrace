@@ -1,7 +1,14 @@
 {
   "name": "reqtrace",
-  "version": "0.1.0",
-  "description": "Outbound HTTP request monitoring SDK",
+  "version": "0.1.2",
+  "description": "Self-hosted HTTP request monitoring for Node.js — track outbound requests, proxy health, and failed targets in a realtime dashboard",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/emircan-sahin/reqtrace.git",
+    "directory": "packages/sdk"
+  },
+  "keywords": ["http", "monitoring", "proxy", "axios", "fetch", "websocket", "request-logger", "self-hosted"],
+  "author": "Emircan Sahin",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
@@ -13,7 +20,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "README.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.esm.json && echo '{\"type\":\"module\"}' > dist/esm/package.json && tsc -p tsconfig.cjs.json",
@@ -24,6 +32,11 @@
   },
   "peerDependencies": {
     "axios": ">=1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "axios": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/node": "^25.4.0",
