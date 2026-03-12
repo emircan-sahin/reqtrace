@@ -30,13 +30,13 @@ export function SearchInput({ debounceMs = 300 }: { debounceMs?: number }) {
 
   return (
     <div className="relative flex items-center">
-      <Search size={12} className="absolute left-2 text-muted-foreground pointer-events-none z-10" />
+      <Search size={14} className="absolute left-2.5 text-muted-foreground pointer-events-none z-10" />
       <Input
         type="text"
         value={local}
         onChange={(e) => handleChange(e.target.value)}
         placeholder="Search URL, method, error..."
-        className="h-8 w-52 pl-6 pr-7 text-xs shadow-none"
+        className="h-9 w-52 pl-7 pr-7 text-sm shadow-none"
       />
       {local && (
         <Button

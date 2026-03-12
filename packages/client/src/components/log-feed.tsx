@@ -91,7 +91,7 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
 
   return (
     <div
-      className="flex-1 relative"
+      className="flex-1 min-h-0 relative"
       onMouseEnter={() => setHoverPaused(true)}
       onMouseLeave={() => setHoverPaused(false)}
     >

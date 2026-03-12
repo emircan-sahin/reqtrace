@@ -298,16 +298,19 @@ export class PostgresStore implements LogStore {
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await this.pool.query(
-      `SELECT
-        to_timestamp(floor(extract(epoch FROM timestamp) / ${interval}) * ${interval}) AS time,
-        project,
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE success = true)::int AS success,
-        COUNT(*) FILTER (WHERE success = false)::int AS errors,
-        COALESCE(ROUND(AVG(duration_ms))::int, 0) AS avg_duration
-      FROM request_logs ${where}
-      GROUP BY time, project
-      ORDER BY time ASC`,
+      `SELECT * FROM (
+        SELECT
+          to_timestamp(floor(extract(epoch FROM timestamp) / ${interval}) * ${interval}) AS time,
+          project,
+          COUNT(*)::int AS total,
+          COUNT(*) FILTER (WHERE success = true)::int AS success,
+          COUNT(*) FILTER (WHERE success = false)::int AS errors,
+          COALESCE(ROUND(AVG(duration_ms))::int, 0) AS avg_duration
+        FROM request_logs ${where}
+        GROUP BY time, project
+        ORDER BY time DESC
+        LIMIT 60
+      ) t ORDER BY time ASC`,
       params,
     );
 

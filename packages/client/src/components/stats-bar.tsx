@@ -48,7 +48,7 @@ export function StatsBar() {
             value={String(chartInterval)}
             onValueChange={(v) => setChartInterval(Number(v))}
           >
-            <SelectTrigger size="sm" className="w-[62px] text-xs shadow-none">
+            <SelectTrigger size="sm" className="w-[72px] text-sm shadow-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -62,27 +62,27 @@ export function StatsBar() {
         )}
         <Button
           variant={chartsOpen ? 'default' : 'outline'}
-          size="icon-xs"
+          size="icon-sm"
           onClick={toggleCharts}
           title={chartsOpen ? 'Hide charts' : 'Show charts'}
         >
-          <BarChart3 size={14} />
+          <BarChart3 size={16} />
         </Button>
         <Button
           variant={manualPaused ? 'default' : 'outline'}
-          size="icon-xs"
+          size="icon-sm"
           onClick={toggleManualPaused}
           title={manualPaused ? 'Resume feed' : 'Pause feed'}
         >
-          {manualPaused ? <Play size={14} /> : <Pause size={14} />}
+          {manualPaused ? <Play size={16} /> : <Pause size={16} />}
         </Button>
         <Button
           variant={autoScroll ? 'default' : 'outline'}
-          size="icon-xs"
+          size="icon-sm"
           onClick={toggleAutoScroll}
           title={autoScroll ? 'Auto-scroll on' : 'Auto-scroll off'}
         >
-          <ArrowDown size={14} />
+          <ArrowDown size={16} />
         </Button>
       </div>
     </div>

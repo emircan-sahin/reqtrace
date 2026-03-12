@@ -49,7 +49,7 @@ export function Header() {
           Clear
         </Button>
         {token && (
-          <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <Button variant="ghost" size="icon-sm" onClick={handleLogout}>
             <LogOut className="w-4 h-4" />
           </Button>
         )}

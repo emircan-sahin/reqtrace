@@ -19,7 +19,7 @@ export function ProjectFilter() {
       value={selectedProject ?? '__all__'}
       onValueChange={(v) => setSelectedProject(v === '__all__' ? null : v)}
     >
-      <SelectTrigger size="sm" className="text-xs shadow-none">
+      <SelectTrigger className="text-sm shadow-none">
         <SelectValue placeholder="All projects" />
       </SelectTrigger>
       <SelectContent>
