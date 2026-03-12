@@ -124,7 +124,8 @@ export class InMemoryStore implements LogStore {
     };
   }
 
-  async chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]> {
+  async chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]> {
+    const interval = (filter?.interval ?? 60) * 1000;
     let logs = this.logs;
 
     if (filter?.project) {
@@ -144,9 +145,8 @@ export class InMemoryStore implements LogStore {
     const map = new Map<string, ChartBucket>();
 
     for (const log of logs) {
-      const d = new Date(log.timestamp);
-      d.setSeconds(0, 0);
-      const time = d.toISOString();
+      const epoch = new Date(log.timestamp).getTime();
+      const time = new Date(Math.floor(epoch / interval) * interval).toISOString();
       const key = `${time}|${log.project}`;
 
       const existing = map.get(key);

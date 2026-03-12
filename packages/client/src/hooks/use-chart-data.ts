@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { get } from '@/services/http';
 import { useFilterStore } from '@/stores/use-filter-store';
+import { useConnectionStore } from '@/stores/use-connection-store';
 import type { RequestLog } from '@/types';
 
 interface ChartBucket {
@@ -28,17 +29,20 @@ export interface LatencyBucket {
   avg: number;
 }
 
-function minuteKey(timestamp: string): string {
-  const d = new Date(timestamp);
-  d.setSeconds(0, 0);
-  return d.toISOString();
+function bucketKey(timestamp: string, intervalMs: number): string {
+  const epoch = new Date(timestamp).getTime();
+  return new Date(Math.floor(epoch / intervalMs) * intervalMs).toISOString();
 }
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+function formatTime(iso: string, intervalSec: number): string {
+  const d = new Date(iso);
+  if (intervalSec >= 3600) {
+    return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  }
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
-function buildChartDatasets(bucketMap: Map<string, ChartBucket>) {
+function buildChartDatasets(bucketMap: Map<string, ChartBucket>, intervalSec: number) {
   const allBuckets = [...bucketMap.values()].sort((a, b) => a.time.localeCompare(b.time));
 
   const timeMap = new Map<string, ChartBucket[]>();
@@ -53,7 +57,7 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>) {
   const sortedTimes = [...timeMap.keys()].sort();
 
   const timelineBuckets: TimelineBucket[] = sortedTimes.map((time) => {
-    const entry: TimelineBucket = { time: formatTime(time) };
+    const entry: TimelineBucket = { time: formatTime(time, intervalSec) };
     for (const b of timeMap.get(time)!) {
       entry[b.project] = ((entry[b.project] as number) ?? 0) + b.total;
     }
@@ -67,7 +71,7 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>) {
       success += b.success;
       errors += b.errors;
     }
-    return { time: formatTime(time), success, errors };
+    return { time: formatTime(time, intervalSec), success, errors };
   });
 
   const latencyBuckets: LatencyBucket[] = sortedTimes.map((time) => {
@@ -78,7 +82,7 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>) {
       totalCount += b.total;
     }
     return {
-      time: formatTime(time),
+      time: formatTime(time, intervalSec),
       avg: totalCount > 0 ? Math.round(totalDuration / totalCount) : 0,
     };
   });
@@ -94,12 +98,13 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>) {
 export function useChartData(filteredLogs: RequestLog[]) {
   const selectedProject = useFilterStore((s) => s.selectedProject);
   const search = useFilterStore((s) => s.search);
+  const chartInterval = useConnectionStore((s) => s.chartInterval);
   const [serverBuckets, setServerBuckets] = useState<ChartBucket[]>([]);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
 
   useEffect(() => {
     setFetchedAt(null);
-    const params: Record<string, string | number> = {};
+    const params: Record<string, string | number> = { interval: chartInterval };
     if (selectedProject) params.project = selectedProject;
     if (search) params.search = search;
 
@@ -111,9 +116,10 @@ export function useChartData(filteredLogs: RequestLog[]) {
         setFetchedAt(fetchTime);
       })
       .catch(() => {});
-  }, [selectedProject, search]);
+  }, [selectedProject, search, chartInterval]);
 
   return useMemo(() => {
+    const intervalMs = chartInterval * 1000;
     const bucketMap = new Map<string, ChartBucket>();
 
     for (const b of serverBuckets) {
@@ -121,12 +127,11 @@ export function useChartData(filteredLogs: RequestLog[]) {
     }
 
     // Only merge logs that arrived via WS after we fetched chart data
-    // This prevents REST-loaded (loadMore) logs from double-counting
     if (fetchedAt) {
       for (const log of filteredLogs) {
         if (log.timestamp <= fetchedAt) continue;
 
-        const time = minuteKey(log.timestamp);
+        const time = bucketKey(log.timestamp, intervalMs);
         const key = `${time}|${log.project}`;
         const existing = bucketMap.get(key);
 
@@ -151,6 +156,6 @@ export function useChartData(filteredLogs: RequestLog[]) {
       }
     }
 
-    return buildChartDatasets(bucketMap);
-  }, [serverBuckets, fetchedAt, filteredLogs]);
+    return buildChartDatasets(bucketMap, chartInterval);
+  }, [serverBuckets, fetchedAt, filteredLogs, chartInterval]);
 }

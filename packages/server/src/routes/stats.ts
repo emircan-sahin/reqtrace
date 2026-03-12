@@ -10,8 +10,13 @@ export function statsRoutes(store: LogStore) {
     });
 
     app.get('/stats/charts', async (request) => {
-      const { project, search } = request.query as { project?: string; search?: string };
-      const filter = project || search ? { project, search } : undefined;
+      const { project, search, interval } = request.query as {
+        project?: string; search?: string; interval?: string;
+      };
+      const intervalSec = interval ? parseInt(interval, 10) : undefined;
+      const filter = project || search || intervalSec
+        ? { project, search, interval: intervalSec }
+        : undefined;
       return { buckets: await store.chartStats(filter) };
     });
 

@@ -83,7 +83,7 @@ export interface LogStore {
   list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }>;
   projects(): Promise<string[]>;
   stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
-  chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]>;
+  chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]>;
   proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]>;
   count(): Promise<number>;
   clear(): Promise<void>;

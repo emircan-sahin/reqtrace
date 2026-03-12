@@ -194,10 +194,11 @@ export class PostgresStore implements LogStore {
     };
   }
 
-  async chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]> {
+  async chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]> {
     const conditions: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
+    const interval = filter?.interval ?? 60;
 
     if (filter?.project) {
       conditions.push(`project = $${idx++}`);
@@ -220,7 +221,7 @@ export class PostgresStore implements LogStore {
 
     const result = await this.pool.query(
       `SELECT
-        date_trunc('minute', timestamp) AS time,
+        to_timestamp(floor(extract(epoch FROM timestamp) / ${interval}) * ${interval}) AS time,
         project,
         COUNT(*)::int AS total,
         COUNT(*) FILTER (WHERE success = true)::int AS success,
