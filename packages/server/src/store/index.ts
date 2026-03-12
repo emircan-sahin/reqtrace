@@ -1,4 +1,4 @@
-import type { RequestLog, LogFilter, StatsResult, ChartBucket, LogStore } from '../types.js';
+import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore } from '../types.js';
 
 const MAX_ENTRIES = 10_000;
 
@@ -171,6 +171,53 @@ export class InMemoryStore implements LogStore {
     }
 
     return [...map.values()].sort((a, b) => a.time.localeCompare(b.time));
+  }
+
+  async proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]> {
+    let logs = this.logs.filter((l) => l.proxy_host !== null);
+
+    if (filter?.project) {
+      logs = logs.filter((l) => l.project === filter.project);
+    }
+    if (filter?.search) {
+      const q = filter.search.toLowerCase();
+      logs = logs.filter((l) =>
+        l.url.toLowerCase().includes(q) ||
+        l.method.toLowerCase().includes(q) ||
+        (l.status !== null && String(l.status).includes(q)) ||
+        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
+        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
+      );
+    }
+
+    const map = new Map<string, ProxyBucket>();
+
+    for (const log of logs) {
+      const key = `${log.proxy_host}|${log.project}`;
+      const existing = map.get(key);
+      const size = log.response_size_bytes ?? 0;
+
+      if (existing) {
+        const oldCount = existing.count;
+        existing.count++;
+        if (log.success) existing.success++;
+        else existing.errors++;
+        existing.total_size += size;
+        existing.avg_size = Math.round(existing.total_size / existing.count);
+      } else {
+        map.set(key, {
+          proxy: log.proxy_host!,
+          project: log.project,
+          count: 1,
+          success: log.success ? 1 : 0,
+          errors: log.success ? 0 : 1,
+          total_size: size,
+          avg_size: size,
+        });
+      }
+    }
+
+    return [...map.values()].sort((a, b) => b.count - a.count);
   }
 
   async projects(): Promise<string[]> {

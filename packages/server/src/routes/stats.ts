@@ -14,5 +14,11 @@ export function statsRoutes(store: LogStore) {
       const filter = project || search ? { project, search } : undefined;
       return { buckets: await store.chartStats(filter) };
     });
+
+    app.get('/stats/proxy', async (request) => {
+      const { project, search } = request.query as { project?: string; search?: string };
+      const filter = project || search ? { project, search } : undefined;
+      return { buckets: await store.proxyStats(filter) };
+    });
   };
 }

@@ -69,12 +69,23 @@ export interface ChartBucket {
   avg_duration: number;
 }
 
+export interface ProxyBucket {
+  proxy: string;
+  project: string;
+  count: number;
+  success: number;
+  errors: number;
+  total_size: number;
+  avg_size: number;
+}
+
 export interface LogStore {
   add(log: RequestLog): Promise<void>;
   list(filter: LogFilter): Promise<{ logs: RequestLog[]; total: number }>;
   projects(): Promise<string[]>;
   stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
   chartStats(filter?: { project?: string; search?: string }): Promise<ChartBucket[]>;
+  proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]>;
   count(): Promise<number>;
   clear(): Promise<void>;
   close(): Promise<void>;

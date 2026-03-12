@@ -1,5 +1,5 @@
 import type pg from 'pg';
-import type { RequestLog, LogFilter, StatsResult, ChartBucket, LogStore } from '../types.js';
+import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore } from '../types.js';
 
 function rowToLog(row: Record<string, unknown>): RequestLog {
   return {
@@ -239,6 +239,56 @@ export class PostgresStore implements LogStore {
       success: row.success as number,
       errors: row.errors as number,
       avg_duration: row.avg_duration as number,
+    }));
+  }
+
+  async proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]> {
+    const conditions: string[] = ['proxy_host IS NOT NULL'];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (filter?.project) {
+      conditions.push(`project = $${idx++}`);
+      params.push(filter.project);
+    }
+    if (filter?.search) {
+      const q = `%${filter.search}%`;
+      conditions.push(`(
+        url ILIKE $${idx} OR
+        method ILIKE $${idx} OR
+        CAST(status AS TEXT) LIKE $${idx} OR
+        error_message ILIKE $${idx} OR
+        proxy_host ILIKE $${idx}
+      )`);
+      params.push(q);
+      idx++;
+    }
+
+    const where = `WHERE ${conditions.join(' AND ')}`;
+
+    const result = await this.pool.query(
+      `SELECT
+        proxy_host AS proxy,
+        project,
+        COUNT(*)::int AS count,
+        COUNT(*) FILTER (WHERE success = true)::int AS success,
+        COUNT(*) FILTER (WHERE success = false)::int AS errors,
+        COALESCE(SUM(response_size_bytes)::bigint, 0) AS total_size,
+        COALESCE(ROUND(AVG(response_size_bytes))::int, 0) AS avg_size
+      FROM request_logs ${where}
+      GROUP BY proxy_host, project
+      ORDER BY count DESC`,
+      params,
+    );
+
+    return result.rows.map((row) => ({
+      proxy: row.proxy as string,
+      project: row.project as string,
+      count: row.count as number,
+      success: row.success as number,
+      errors: row.errors as number,
+      total_size: Number(row.total_size),
+      avg_size: row.avg_size as number,
     }));
   }
 
