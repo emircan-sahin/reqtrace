@@ -12,9 +12,14 @@ export function PendingEntry({ entry }: { entry: RequestStart }) {
   return (
     <div className="px-4 py-3 border-b border-border/50 bg-muted/30 animate-pulse">
       <div className="flex items-center gap-3">
-        <div className="w-12 text-center">
+        <div className="w-4 text-center">
           <span className="inline-block w-4 h-4 border-2 border-muted-foreground border-t-foreground rounded-full animate-spin" />
         </div>
+        <span className="text-xs text-muted-foreground font-mono flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-foreground/60">{entry.project}</span>
+          <span className="text-border">|</span>
+          <span>{formatTime(entry.timestamp)}</span>
+        </span>
         <MethodBadge method={entry.method} />
         <span className="font-mono text-sm text-muted-foreground truncate">
           {entry.url}
@@ -45,8 +50,10 @@ export function CompletedEntry({ log }: { log: LogSummary }) {
           size={14}
           className={`transition-transform flex-shrink-0 ${expanded ? 'rotate-90 text-foreground' : 'text-muted-foreground'}`}
         />
-        <span className="text-xs text-muted-foreground font-mono">
-          {formatTime(log.timestamp)}
+        <span className="text-xs text-muted-foreground font-mono flex items-center gap-1.5 flex-shrink-0">
+          <span className="text-foreground/60">{log.project}</span>
+          <span className="text-border">|</span>
+          <span>{formatTime(log.timestamp)}</span>
         </span>
         <StatusBadge status={log.status} success={log.success} />
         <MethodBadge method={log.method} />

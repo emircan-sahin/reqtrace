@@ -48,7 +48,7 @@ export function StatsBar() {
             value={String(chartInterval)}
             onValueChange={(v) => setChartInterval(Number(v))}
           >
-            <SelectTrigger className="h-6 w-[62px] text-xs px-2">
+            <SelectTrigger size="sm" className="w-[62px] text-xs shadow-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
