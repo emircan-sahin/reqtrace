@@ -5,7 +5,7 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   enabled: true,
   serverUrl: null,
   projectName: 'default',
-  captureBody: false,
+  captureBody: true,
   maxBodySize: 51200,
   filter: () => true,
 };
