@@ -65,6 +65,8 @@ adapter.install()
 // All axios requests are now logged to your dashboard
 ```
 
+> See full example: [`examples/axios-demo.ts`](examples/axios-demo.ts)
+
 ### With Fetch
 
 ```ts
@@ -82,6 +84,8 @@ adapter.install()
 // All fetch() calls are now logged to your dashboard
 const res = await fetch('https://api.example.com/users')
 ```
+
+> See full example: [`examples/fetch-demo.ts`](examples/fetch-demo.ts)
 
 ### Config Options
 
@@ -132,7 +136,7 @@ Your App (axios/fetch + reqtrace SDK)
 packages/sdk      → npm package (Axios/Fetch adapters + WebSocket transport)
 packages/server   → Fastify backend (WebSocket + REST API + auth)
 packages/client   → React dashboard (Tailwind + @tanstack/react-virtual)
-examples/         → Demo script
+examples/         → Demo scripts (Axios, Fetch)
 ```
 
 ## Development
@@ -141,7 +145,8 @@ examples/         → Demo script
 pnpm dev            # Start server + client
 pnpm dev:server     # Start server only
 pnpm dev:client     # Start client only
-pnpm demo           # Run demo requests
+pnpm demo           # Run Axios demo
+pnpm demo:fetch     # Run Fetch demo
 pnpm build          # Build all packages
 pnpm test           # Run all tests
 ```

@@ -10,12 +10,6 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   filter: () => true,
 };
 
-function defaultLogHandler(log: RequestLog): void {
-  const status = log.success ? `${log.status}` : `FAIL`;
-  const line = `[reqtrace] ${log.method} ${log.url} ${status} ${log.duration_ms}ms`;
-  console.log(line, log);
-}
-
 export class ReqtraceCore {
   private config: ResolvedConfig;
   private logHandler: LogHandler;
@@ -31,12 +25,9 @@ export class ReqtraceCore {
       this.transport = createWsTransport(this.config.serverUrl, config?.apiKey);
       const transport = this.transport;
       this.startHandler = (start) => transport.sendStart(start);
-      this.logHandler = (log: RequestLog) => {
-        defaultLogHandler(log);
-        transport.sendEnd(log);
-      };
+      this.logHandler = (log: RequestLog) => transport.sendEnd(log);
     } else {
-      this.logHandler = defaultLogHandler;
+      this.logHandler = () => {};
     }
   }
 

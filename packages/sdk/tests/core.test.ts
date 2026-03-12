@@ -82,13 +82,13 @@ describe('ReqtraceCore', () => {
       expect(handler).not.toHaveBeenCalled();
     });
 
-    it('uses console.log by default', () => {
+    it('is silent by default (no console output)', () => {
       const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
       const core = new ReqtraceCore();
 
       core.handleLog(makeMockLog());
 
-      expect(spy).toHaveBeenCalledOnce();
+      expect(spy).not.toHaveBeenCalled();
       spy.mockRestore();
     });
   });

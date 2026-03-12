@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "demo": "tsx demo.ts"
+    "demo": "tsx axios-demo.ts",
+    "demo:axios": "tsx axios-demo.ts",
+    "demo:fetch": "tsx fetch-demo.ts"
   },
   "dependencies": {
     "reqtrace": "workspace:*",

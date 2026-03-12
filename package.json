@@ -6,6 +6,8 @@
     "dev:server": "pnpm --filter @reqtrace/server dev",
     "dev:client": "pnpm --filter @reqtrace/client dev",
     "demo": "pnpm --filter @reqtrace/examples demo",
+    "demo:axios": "pnpm --filter @reqtrace/examples demo:axios",
+    "demo:fetch": "pnpm --filter @reqtrace/examples demo:fetch",
     "build": "pnpm -r build",
     "test": "pnpm -r test"
   },

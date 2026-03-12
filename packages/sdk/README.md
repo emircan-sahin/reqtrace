@@ -42,6 +42,8 @@ adapter.install()
 // All axios requests are now logged to your dashboard
 ```
 
+> See full example: [`examples/axios-demo.ts`](https://github.com/emircan-sahin/reqtrace/blob/main/examples/axios-demo.ts)
+
 ### With Fetch
 
 ```ts
@@ -59,6 +61,8 @@ adapter.install()
 // All fetch() calls are now logged to your dashboard
 const res = await fetch('https://api.example.com/users')
 ```
+
+> See full example: [`examples/fetch-demo.ts`](https://github.com/emircan-sahin/reqtrace/blob/main/examples/fetch-demo.ts)
 
 ## Config Options
 
