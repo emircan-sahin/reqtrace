@@ -1,4 +1,4 @@
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible';
+import { memo } from 'react';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import { useFilteredLogs } from '@/hooks/use-filtered-logs';
 import { useChartData } from '@/hooks/use-chart-data';
@@ -10,8 +10,14 @@ import { ProxyRequestChart } from '@/components/charts/proxy-request-chart';
 import { ProxyResponseSizeChart } from '@/components/charts/proxy-response-size-chart';
 import { ProxySuccessErrorChart } from '@/components/charts/proxy-success-error-chart';
 
-export function ChartsPanel() {
-  const chartsOpen = useConnectionStore((s) => s.chartsOpen);
+const MemoRequestTimeline = memo(RequestTimelineChart);
+const MemoSuccessError = memo(SuccessErrorChart);
+const MemoLatency = memo(LatencyChart);
+const MemoProxyRequest = memo(ProxyRequestChart);
+const MemoProxySuccessError = memo(ProxySuccessErrorChart);
+const MemoProxyResponseSize = memo(ProxyResponseSizeChart);
+
+function ChartsPanelContent() {
   const { filteredLogs } = useFilteredLogs();
   const { timelineBuckets, successErrorBuckets, latencyBuckets, projectNames } =
     useChartData(filteredLogs);
@@ -19,17 +25,21 @@ export function ChartsPanel() {
     useProxyChartData(filteredLogs);
 
   return (
-    <Collapsible open={chartsOpen}>
-      <CollapsibleContent>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 p-3 border-b border-border bg-background">
-          <RequestTimelineChart data={timelineBuckets} projectNames={projectNames} />
-          <SuccessErrorChart data={successErrorBuckets} />
-          <LatencyChart data={latencyBuckets} />
-          <ProxyRequestChart data={requestData} projectNames={proxyProjectNames} />
-          <ProxySuccessErrorChart data={successErrorData} />
-          <ProxyResponseSizeChart data={responseSizeData} projectNames={proxyProjectNames} />
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 p-3 border-b border-border bg-background">
+      <MemoRequestTimeline data={timelineBuckets} projectNames={projectNames} />
+      <MemoSuccessError data={successErrorBuckets} />
+      <MemoLatency data={latencyBuckets} />
+      <MemoProxyRequest data={requestData} projectNames={proxyProjectNames} />
+      <MemoProxySuccessError data={successErrorData} />
+      <MemoProxyResponseSize data={responseSizeData} projectNames={proxyProjectNames} />
+    </div>
   );
+}
+
+export function ChartsPanel() {
+  const chartsOpen = useConnectionStore((s) => s.chartsOpen);
+
+  if (!chartsOpen) return null;
+
+  return <ChartsPanelContent />;
 }
