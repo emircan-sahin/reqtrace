@@ -1,6 +1,6 @@
 import { useAuthStore } from '@/stores/use-auth-store';
 
-const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3100').replace(/\/+$/, '');
+const BASE_URL = (import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3100').replace(/\/+$/, '') || window.location.origin;
 
 function authHeaders(): Record<string, string> {
   const token = localStorage.getItem('reqtrace_token');
