@@ -33,7 +33,8 @@ export const authPlugin = fp(async (app: FastifyInstance, opts: AuthPluginOption
     if (
       request.url === '/health' ||
       request.url.startsWith('/api/auth/') ||
-      request.url.startsWith('/ws')
+      request.url.startsWith('/ws') ||
+      !request.url.startsWith('/api/')
     ) {
       return;
     }
