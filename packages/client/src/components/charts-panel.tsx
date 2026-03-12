@@ -26,8 +26,8 @@ export function ChartsPanel() {
           <SuccessErrorChart data={successErrorBuckets} />
           <LatencyChart data={latencyBuckets} />
           <ProxyRequestChart data={requestData} projectNames={proxyProjectNames} />
-          <ProxyResponseSizeChart data={responseSizeData} projectNames={proxyProjectNames} />
           <ProxySuccessErrorChart data={successErrorData} />
+          <ProxyResponseSizeChart data={responseSizeData} projectNames={proxyProjectNames} />
         </div>
       </CollapsibleContent>
     </Collapsible>

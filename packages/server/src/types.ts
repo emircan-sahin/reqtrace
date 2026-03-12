@@ -76,7 +76,6 @@ export interface ProxyBucket {
   success: number;
   errors: number;
   total_size: number;
-  avg_size: number;
 }
 
 export interface LogStore {

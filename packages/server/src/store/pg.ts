@@ -268,15 +268,14 @@ export class PostgresStore implements LogStore {
 
     const result = await this.pool.query(
       `SELECT
-        proxy_host AS proxy,
+        proxy_host || ':' || proxy_port AS proxy,
         project,
         COUNT(*)::int AS count,
         COUNT(*) FILTER (WHERE success = true)::int AS success,
         COUNT(*) FILTER (WHERE success = false)::int AS errors,
-        COALESCE(SUM(response_size_bytes)::bigint, 0) AS total_size,
-        COALESCE(ROUND(AVG(response_size_bytes))::int, 0) AS avg_size
+        COALESCE(SUM(response_size_bytes)::bigint, 0) AS total_size
       FROM request_logs ${where}
-      GROUP BY proxy_host, project
+      GROUP BY proxy_host, proxy_port, project
       ORDER BY count DESC`,
       params,
     );
@@ -288,7 +287,6 @@ export class PostgresStore implements LogStore {
       success: row.success as number,
       errors: row.errors as number,
       total_size: Number(row.total_size),
-      avg_size: row.avg_size as number,
     }));
   }
 

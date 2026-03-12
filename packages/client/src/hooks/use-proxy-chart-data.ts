@@ -10,7 +10,6 @@ interface ProxyBucket {
   success: number;
   errors: number;
   total_size: number;
-  avg_size: number;
 }
 
 export interface ProxyRequestData {
@@ -60,7 +59,7 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
   const responseSizeData: ProxyResponseSizeData[] = sortedProxies.map((proxy) => {
     const entry: ProxyResponseSizeData = { proxy };
     for (const b of proxyMap.get(proxy)!) {
-      entry[b.project] = ((entry[b.project] as number) ?? 0) + b.avg_size;
+      entry[b.project] = ((entry[b.project] as number) ?? 0) + b.total_size;
     }
     return entry;
   });
@@ -116,7 +115,8 @@ export function useProxyChartData(filteredLogs: RequestLog[]) {
       for (const log of filteredLogs) {
         if (log.timestamp <= fetchedAt || !log.proxy_host) continue;
 
-        const key = `${log.proxy_host}|${log.project}`;
+        const proxy = `${log.proxy_host}:${log.proxy_port}`;
+        const key = `${proxy}|${log.project}`;
         const size = log.response_size_bytes ?? 0;
         const existing = bucketMap.get(key);
 
@@ -125,16 +125,14 @@ export function useProxyChartData(filteredLogs: RequestLog[]) {
           if (log.success) existing.success++;
           else existing.errors++;
           existing.total_size += size;
-          existing.avg_size = Math.round(existing.total_size / existing.count);
         } else {
           bucketMap.set(key, {
-            proxy: log.proxy_host,
+            proxy,
             project: log.project,
             count: 1,
             success: log.success ? 1 : 0,
             errors: log.success ? 0 : 1,
             total_size: size,
-            avg_size: size,
           });
         }
       }

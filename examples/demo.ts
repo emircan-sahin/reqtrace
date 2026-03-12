@@ -11,26 +11,32 @@ const core = new ReqtraceCore({
 const adapter = new AxiosAdapter(axios, core);
 adapter.install();
 
-const requests = [
-  { url: 'https://jsonplaceholder.typicode.com/todos/1', method: 'get' as const },
-  { url: 'https://jsonplaceholder.typicode.com/posts/1', method: 'get' as const },
-  { url: 'https://jsonplaceholder.typicode.com/users/1', method: 'get' as const,
-    proxy: { host: '127.0.0.1', port: 8080 } },
-  { url: 'https://jsonplaceholder.typicode.com/comments/1', method: 'get' as const,
-    proxy: { host: 'proxy.example.com', port: 3128 } },
-  { url: 'https://jsonplaceholder.typicode.com/todos/99999999', method: 'post' as const },
+function randomProxy() {
+  const port = 8080 + Math.floor(Math.random() * 11); // 8080–8090
+  return { host: '127.0.0.1', port };
+}
+
+const urls = [
+  'https://jsonplaceholder.typicode.com/todos/1',
+  'https://jsonplaceholder.typicode.com/posts/1',
+  'https://jsonplaceholder.typicode.com/users/1',
+  'https://jsonplaceholder.typicode.com/comments/1',
+  'https://jsonplaceholder.typicode.com/albums/1',
 ];
 
 let i = 0;
 
 const interval = setInterval(async () => {
-  const { url, method, proxy } = requests[i % requests.length];
+  const url = urls[i % urls.length];
+  const useProxy = Math.random() > 0.3; // 70% proxy
+  const isPost = Math.random() > 0.8;   // 20% POST
 
   try {
-    if (method === 'post') {
-      await axios.post(url, { title: 'test', body: `request #${i}` }, { proxy });
+    if (isPost) {
+      await axios.post(url, { title: 'test', body: `request #${i}` },
+        useProxy ? { proxy: randomProxy() } : undefined);
     } else {
-      await axios.get(url, { proxy });
+      await axios.get(url, useProxy ? { proxy: randomProxy() } : undefined);
     }
   } catch {
     // errors are logged by reqtrace

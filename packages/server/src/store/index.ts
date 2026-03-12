@@ -193,26 +193,24 @@ export class InMemoryStore implements LogStore {
     const map = new Map<string, ProxyBucket>();
 
     for (const log of logs) {
-      const key = `${log.proxy_host}|${log.project}`;
+      const proxy = `${log.proxy_host}:${log.proxy_port}`;
+      const key = `${proxy}|${log.project}`;
       const existing = map.get(key);
       const size = log.response_size_bytes ?? 0;
 
       if (existing) {
-        const oldCount = existing.count;
         existing.count++;
         if (log.success) existing.success++;
         else existing.errors++;
         existing.total_size += size;
-        existing.avg_size = Math.round(existing.total_size / existing.count);
       } else {
         map.set(key, {
-          proxy: log.proxy_host!,
+          proxy,
           project: log.project,
           count: 1,
           success: log.success ? 1 : 0,
           errors: log.success ? 0 : 1,
           total_size: size,
-          avg_size: size,
         });
       }
     }

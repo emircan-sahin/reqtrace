@@ -40,7 +40,7 @@ export function ProxyResponseSizeChart({
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="px-4 py-3">
-        <CardTitle className="text-sm">Proxy Avg Response Size</CardTitle>
+        <CardTitle className="text-sm">Proxy Total Response Size</CardTitle>
       </CardHeader>
       <CardContent className="px-2 pb-3">
         <ChartContainer config={chartConfig} className="aspect-auto h-[160px] w-full">
@@ -51,6 +51,7 @@ export function ProxyResponseSizeChart({
               axisLine={false}
               tick={{ fontSize: 11 }}
               interval="preserveStartEnd"
+              tickFormatter={(v: string) => v.split(':').pop() ?? v}
             />
             <YAxis
               tickLine={false}

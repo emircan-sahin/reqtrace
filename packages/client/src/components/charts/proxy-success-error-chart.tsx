@@ -28,6 +28,7 @@ export function ProxySuccessErrorChart({ data }: { data: ProxySuccessErrorData[]
               axisLine={false}
               tick={{ fontSize: 11 }}
               interval="preserveStartEnd"
+              tickFormatter={(v: string) => v.split(':').pop() ?? v}
             />
             <YAxis
               tickLine={false}

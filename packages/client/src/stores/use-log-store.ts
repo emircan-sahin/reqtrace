@@ -17,14 +17,19 @@ interface LogState {
   reset: () => void;
 }
 
+const MAX_CLIENT_LOGS = 200;
+
 export const useLogStore = create<LogState>((set) => ({
   logs: [],
   pending: new Map(),
   hasMore: true,
   ready: false,
 
-  setLogs: (logs) => set({ logs }),
-  appendLog: (log) => set((s) => ({ logs: [...s.logs, log] })),
+  setLogs: (logs) => set({ logs: logs.slice(-MAX_CLIENT_LOGS) }),
+  appendLog: (log) => set((s) => {
+    const next = [...s.logs, log];
+    return { logs: next.length > MAX_CLIENT_LOGS ? next.slice(-MAX_CLIENT_LOGS) : next };
+  }),
   prependLogs: (older) => set((s) => ({ logs: [...older, ...s.logs] })),
   addPending: (entry) => set((s) => {
     const next = new Map(s.pending);
