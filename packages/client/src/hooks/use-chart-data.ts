@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { get } from '@/services/http';
 import { useFilterStore } from '@/stores/use-filter-store';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import type { LogSummary } from '@/types';
+
+const REFETCH_INTERVAL = 10_000;
 
 interface ChartBucket {
   time: string;
@@ -102,12 +104,12 @@ export function useChartData(filteredLogs: LogSummary[]) {
   const [serverBuckets, setServerBuckets] = useState<ChartBucket[]>([]);
   const [fetchedAt, setFetchedAt] = useState<string | null>(null);
 
-  useEffect(() => {
-    setFetchedAt(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchCharts = useCallback(() => {
     const params: Record<string, string | number> = { interval: chartInterval };
     if (selectedProject) params.project = selectedProject;
     if (search) params.search = search;
-
     const fetchTime = new Date().toISOString();
 
     get<{ buckets: ChartBucket[] }>('/api/stats/charts', params)
@@ -117,6 +119,16 @@ export function useChartData(filteredLogs: LogSummary[]) {
       })
       .catch(() => {});
   }, [selectedProject, search, chartInterval]);
+
+  useEffect(() => {
+    setFetchedAt(null);
+    fetchCharts();
+
+    timerRef.current = setInterval(fetchCharts, REFETCH_INTERVAL);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [fetchCharts]);
 
   return useMemo(() => {
     const intervalMs = chartInterval * 1000;
