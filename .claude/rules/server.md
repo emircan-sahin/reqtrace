@@ -15,7 +15,7 @@ Includes JWT auth with DB token validation and API key auth for SDK clients.
 - `src/env.ts` — Zod-validated environment config with defaults
 - `src/app.ts` — Fastify app factory (plugin/route registration orchestrator)
 - `src/db/index.ts` — PostgreSQL pool creation and schema initialization
-- `src/store/pg.ts` — PostgresStore (5K logs per project, batch cleanup)
+- `src/store/pg.ts` — PostgresStore (5K logs per project, batch insert 200ms/50 logs, batch cleanup)
 - `src/store/index.ts` — InMemoryStore (used in tests)
 - `src/plugins/auth.ts` — Auth plugin (JWT, rate-limit, onRequest hook, periodic WS token check)
 - `src/ws/index.ts` — BroadcastManager (fan-out to dashboard clients, auth client tracking)

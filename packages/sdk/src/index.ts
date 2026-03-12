@@ -1,5 +1,6 @@
 export { ReqtraceCore } from './core.js';
 export { AxiosAdapter } from './adapters/axios.js';
+export { FetchAdapter } from './adapters/fetch.js';
 export type {
   ReqtraceConfig,
   ResolvedConfig,

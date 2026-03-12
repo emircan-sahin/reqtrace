@@ -1,6 +1,6 @@
 # reqtrace
 
-Self-hosted HTTP request monitoring for Node.js. Drop in an Axios interceptor, see every outbound request in a realtime dashboard.
+Self-hosted HTTP request monitoring for Node.js. Drop in an Axios or Fetch adapter, see every outbound request in a realtime dashboard — including proxy usage, blocked proxies, and failed targets.
 
 ![reqtrace dashboard](client-v1.png)
 
@@ -8,7 +8,9 @@ Self-hosted HTTP request monitoring for Node.js. Drop in an Axios interceptor, s
 
 - **Realtime feed** — WebSocket-powered live log stream
 - **Request inspection** — Expandable rows with headers, body, and JSON tree-view
+- **Proxy tracking** — Monitor proxy health, detect blocked proxies, and identify which sites fail through which proxy
 - **Project filtering** — Tag requests by project, filter in the dashboard
+- **Charts & analytics** — Request timeline, success/error rates, latency breakdown per project
 - **Resend requests** — Replay any request from the dashboard
 - **Virtual scrolling** — Smooth performance with thousands of entries
 - **Auth** — Single admin account with JWT + API key for SDK
@@ -44,6 +46,8 @@ Install the SDK in your project:
 pnpm add reqtrace
 ```
 
+### With Axios
+
 ```ts
 import axios from 'axios'
 import { ReqtraceCore, AxiosAdapter } from 'reqtrace'
@@ -61,6 +65,24 @@ adapter.install()
 // All axios requests are now logged to your dashboard
 ```
 
+### With Fetch
+
+```ts
+import { ReqtraceCore, FetchAdapter } from 'reqtrace'
+
+const core = new ReqtraceCore({
+  serverUrl: 'http://localhost:3100',
+  apiKey: 'your-api-key',
+  projectName: 'my-api',
+})
+
+const adapter = new FetchAdapter(core)
+adapter.install()
+
+// All fetch() calls are now logged to your dashboard
+const res = await fetch('https://api.example.com/users')
+```
+
 ### Config Options
 
 | Option | Type | Default | Description |
@@ -76,7 +98,7 @@ adapter.install()
 ## Architecture
 
 ```
-Your App (axios + reqtrace SDK)
+Your App (axios/fetch + reqtrace SDK)
         │
         │ WebSocket (?apiKey=...)
         ▼
@@ -107,7 +129,7 @@ Your App (axios + reqtrace SDK)
 ## Monorepo Structure
 
 ```
-packages/sdk      → npm package (Axios interceptor + WebSocket transport)
+packages/sdk      → npm package (Axios/Fetch adapters + WebSocket transport)
 packages/server   → Fastify backend (WebSocket + REST API + auth)
 packages/client   → React dashboard (Tailwind + @tanstack/react-virtual)
 examples/         → Demo script
@@ -145,7 +167,7 @@ pnpm test           # Run all tests
 
 | Package | Stack |
 |---------|-------|
-| SDK | TypeScript, axios (peer dep), ws |
+| SDK | TypeScript, axios (peer dep), fetch (native), ws |
 | Server | Fastify, @fastify/websocket, @fastify/jwt, @fastify/rate-limit, PostgreSQL, Zod, bcryptjs |
 | Client | React, Tailwind CSS, Zustand, @tanstack/react-virtual |
 

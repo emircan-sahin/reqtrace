@@ -6,7 +6,7 @@ requests and pushes them to a self-hosted dashboard via WebSocket.
 ## Monorepo Structure
 
 ```
-/packages/sdk       → npm package (Axios interceptor + WebSocket push)
+/packages/sdk       → npm package (Axios/Fetch adapters + WebSocket push)
 /packages/server    → WebSocket + REST API backend (Fastify)
 /packages/client    → Realtime frontend (React + Tailwind)
 /examples           → Demo script for testing

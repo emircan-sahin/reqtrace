@@ -7,31 +7,32 @@ paths:
 
 ## Purpose
 npm package that users install to monitor outbound HTTP requests.
-Uses an adapter pattern with ReqtraceCore + AxiosAdapter. Captures
+Uses an adapter pattern with ReqtraceCore + AxiosAdapter/FetchAdapter. Captures
 request/response metadata and pushes logs to the server via WebSocket.
 
 ## Key Files
 - `src/index.ts` — Barrel exports for public API
 - `src/core.ts` — ReqtraceCore class (config, log dispatch, transport wiring)
 - `src/adapters/axios.ts` — AxiosAdapter (request/response interceptors)
+- `src/adapters/fetch.ts` — FetchAdapter (globalThis.fetch monkey-patch)
 - `src/transport.ts` — WebSocket transport with auto-reconnect and 100-msg buffer
 - `src/types.ts` — TypeScript interfaces (ReqtraceConfig, RequestLog, RequestStart)
 - `src/utils.ts` — truncateBody, estimateSize, flattenHeaders
 
 ## Public API
 ```ts
+// Axios adapter
 import { ReqtraceCore, AxiosAdapter } from 'reqtrace'
-
-const core = new ReqtraceCore({
-  serverUrl: 'http://localhost:3100',
-  projectName: 'my-api',   // default: 'default'
-  captureBody: true,        // default: false
-  maxBodySize: 51200,       // default: 50KB
-  filter: (url, method) => true,
-})
-
+const core = new ReqtraceCore({ serverUrl: 'http://localhost:3100', projectName: 'my-api' })
 const adapter = new AxiosAdapter(axios, core)
 adapter.install()
+
+// Fetch adapter
+import { ReqtraceCore, FetchAdapter } from 'reqtrace'
+const core = new ReqtraceCore({ serverUrl: 'http://localhost:3100', projectName: 'my-api' })
+const adapter = new FetchAdapter(core)
+adapter.install()
+
 // later: adapter.eject(); core.destroy()
 ```
 
