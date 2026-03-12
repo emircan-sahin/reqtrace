@@ -1,4 +1,4 @@
-import { ArrowDown, BarChart3 } from 'lucide-react';
+import { ArrowDown, BarChart3, Pause, Play } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -27,6 +27,8 @@ export function StatsBar() {
   const toggleCharts = useConnectionStore((s) => s.toggleCharts);
   const chartInterval = useConnectionStore((s) => s.chartInterval);
   const setChartInterval = useConnectionStore((s) => s.setChartInterval);
+  const manualPaused = useConnectionStore((s) => s.manualPaused);
+  const toggleManualPaused = useConnectionStore((s) => s.toggleManualPaused);
 
   const successRate =
     stats.total_requests > 0
@@ -65,6 +67,14 @@ export function StatsBar() {
           title={chartsOpen ? 'Hide charts' : 'Show charts'}
         >
           <BarChart3 size={14} />
+        </Button>
+        <Button
+          variant={manualPaused ? 'default' : 'outline'}
+          size="icon-xs"
+          onClick={toggleManualPaused}
+          title={manualPaused ? 'Resume feed' : 'Pause feed'}
+        >
+          {manualPaused ? <Play size={14} /> : <Pause size={14} />}
         </Button>
         <Button
           variant={autoScroll ? 'default' : 'outline'}

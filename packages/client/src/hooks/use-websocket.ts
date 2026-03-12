@@ -6,6 +6,7 @@ import { useConnectionStore } from '@/stores/use-connection-store';
 import type { RequestLog, RequestStart, WsMessage } from '@/types';
 
 const FLUSH_INTERVAL = 500;
+const MAX_BUFFER = 200;
 
 export function useWebSocket() {
   useEffect(() => {
@@ -16,6 +17,8 @@ export function useWebSocket() {
     let timer: ReturnType<typeof setInterval> | null = null;
 
     function flush() {
+      const { hoverPaused, manualPaused } = useConnectionStore.getState();
+      if (hoverPaused || manualPaused) return;
       if (
         pendingAdds.length === 0 &&
         pendingRemoveIds.length === 0 &&
@@ -69,11 +72,13 @@ export function useWebSocket() {
 
           if (msg.type === 'request_start') {
             pendingAdds.push(msg);
+            if (pendingAdds.length > MAX_BUFFER) pendingAdds = pendingAdds.slice(-MAX_BUFFER);
             pendingProjects.add(msg.project);
           } else if (msg.type === 'request_end') {
             pendingRemoveIds.push(msg.id);
             const { type: _, ...log } = msg;
             pendingLogs.push(log);
+            if (pendingLogs.length > MAX_BUFFER) pendingLogs = pendingLogs.slice(-MAX_BUFFER);
             pendingProjects.add(msg.project);
           }
         } catch {

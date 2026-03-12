@@ -15,6 +15,10 @@ const ROW_HEIGHT = 52;
 export function LogFeed({ loadMore }: { loadMore: () => void }) {
   const { filteredLogs, filteredPending } = useFilteredLogs();
   const autoScroll = useConnectionStore((s) => s.autoScroll);
+  const hoverPaused = useConnectionStore((s) => s.hoverPaused);
+  const manualPaused = useConnectionStore((s) => s.manualPaused);
+  const setHoverPaused = useConnectionStore((s) => s.setHoverPaused);
+  const paused = hoverPaused || manualPaused;
   const hasMore = useLogStore((s) => s.hasMore);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevItemsLengthRef = useRef(0);
@@ -86,7 +90,19 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
   }, [handleScroll]);
 
   return (
-    <div ref={containerRef} className="flex-1 overflow-y-auto">
+    <div
+      ref={containerRef}
+      className="flex-1 overflow-y-auto relative"
+      onMouseEnter={() => setHoverPaused(true)}
+      onMouseLeave={() => setHoverPaused(false)}
+    >
+      {paused && (
+        <div className="sticky top-0 left-0 right-0 z-10 flex justify-center pointer-events-none py-2">
+          <span className="bg-amber-500/90 text-white text-xs font-medium px-3 py-1 rounded-full shadow-sm">
+            Paused
+          </span>
+        </div>
+      )}
       {isEmpty ? (
         <div className="h-full flex items-center justify-center text-muted-foreground">
           <div className="text-center">
@@ -107,9 +123,10 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
           >
             {virtualizer.getVirtualItems().map((virtualRow) => {
               const item = items[virtualRow.index];
+              const itemId = item.data.id;
               return (
                 <div
-                  key={virtualRow.key}
+                  key={itemId}
                   className="absolute top-0 left-0 w-full"
                   style={{ transform: `translateY(${virtualRow.start}px)` }}
                   ref={virtualizer.measureElement}
