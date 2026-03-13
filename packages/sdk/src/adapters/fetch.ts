@@ -54,57 +54,68 @@ export class FetchAdapter implements ReqtraceAdapter {
         error = err instanceof Error ? err : new Error(String(err));
       }
 
-      const duration_ms = Date.now() - start;
-      const requestHeaders = flattenHeaders(init?.headers);
-      const responseHeaders: Record<string, string> = {};
+      const endTime = Date.now();
 
+      // Clone before returning so the caller can consume the original body
+      const clonedResponse = response && config.captureBody ? response.clone() : null;
+
+      // Capture lightweight metadata synchronously
+      const responseStatus = response?.status ?? null;
+      const responseHeaders: Record<string, string> = {};
       if (response) {
         response.headers.forEach((value, key) => {
           responseHeaders[key] = value;
         });
       }
+      const responseSuccess = response !== null && response.status >= 200 && response.status < 400;
+      const errorMessage = error?.message ?? null;
 
-      const contentLength = responseHeaders['content-length'];
-      let responseSize: number | null = null;
-      if (contentLength) {
-        const parsed = parseInt(contentLength, 10);
-        if (!isNaN(parsed)) responseSize = parsed;
-      }
+      // Defer all heavy processing to avoid blocking the caller
+      setImmediate(async () => {
+        const duration_ms = endTime - start;
+        const requestHeaders = flattenHeaders(init?.headers);
 
-      let responseBody: string | undefined;
-      if (response && config.captureBody) {
-        try {
-          const cloned = response.clone();
-          const text = await cloned.text();
-          responseBody = truncateBody(text, config.maxBodySize);
-          if (responseSize === null) {
-            responseSize = estimateSize(text);
-          }
-        } catch {
-          // body may not be readable
+        const contentLength = responseHeaders['content-length'];
+        let responseSize: number | null = null;
+        if (contentLength) {
+          const parsed = parseInt(contentLength, 10);
+          if (!isNaN(parsed)) responseSize = parsed;
         }
-      }
 
-      const log: RequestLog = {
-        id,
-        project: config.projectName,
-        url,
-        method,
-        status: response?.status ?? null,
-        duration_ms,
-        proxy_host: null,
-        proxy_port: null,
-        response_size_bytes: responseSize,
-        request_headers: requestHeaders,
-        response_headers: responseHeaders,
-        request_body: requestBody,
-        response_body: responseBody,
-        error_message: error?.message ?? null,
-        success: response !== null && response.status >= 200 && response.status < 400,
-        timestamp: new Date().toISOString(),
-      };
+        let responseBody: string | undefined;
+        if (clonedResponse) {
+          try {
+            const text = await clonedResponse.text();
+            responseBody = truncateBody(text, config.maxBodySize);
+            if (responseSize === null) {
+              responseSize = estimateSize(text);
+            }
+          } catch {
+            // body may not be readable
+          }
+        }
 
-      self.core.handleLog(log);
+        const log: RequestLog = {
+          id,
+          project: config.projectName,
+          url,
+          method,
+          status: responseStatus,
+          duration_ms,
+          proxy_host: null,
+          proxy_port: null,
+          response_size_bytes: responseSize,
+          request_headers: requestHeaders,
+          response_headers: responseHeaders,
+          request_body: requestBody,
+          response_body: responseBody,
+          error_message: errorMessage,
+          success: responseSuccess,
+          timestamp: new Date().toISOString(),
+        };
+
+        self.core.handleLog(log);
+      });
 
       if (error) throw error;
       return response!;

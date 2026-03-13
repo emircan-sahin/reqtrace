@@ -21,6 +21,9 @@ function mockFetchError(message = 'fetch failed') {
   });
 }
 
+// Wait for setImmediate callbacks (deferred log dispatch) to flush
+const tick = () => new Promise(resolve => setImmediate(resolve));
+
 describe('FetchAdapter', () => {
   let handler: ReturnType<typeof vi.fn>;
   let core: ReqtraceCore;
@@ -45,6 +48,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://api.example.com/data');
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
       const log = logs[0];
@@ -65,6 +69,7 @@ describe('FetchAdapter', () => {
         method: 'POST',
         body: JSON.stringify({ name: 'test' }),
       });
+      await tick();
 
       const log = logs[0];
       expect(log.method).toBe('POST');
@@ -77,6 +82,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://api.example.com/data');
+      await tick();
 
       expect(logs[0].response_size_bytes).toBe(10);
     });
@@ -88,6 +94,7 @@ describe('FetchAdapter', () => {
       await fetch('https://api.example.com/data', {
         headers: { 'X-Custom': 'test-value' },
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_headers['X-Custom']).toBe('test-value');
@@ -99,6 +106,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch(new URL('https://api.example.com/data'));
+      await tick();
 
       expect(logs[0].url).toBe('https://api.example.com/data');
     });
@@ -110,6 +118,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await expect(fetch('https://api.example.com/data')).rejects.toThrow();
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
       const log = logs[0];
@@ -123,6 +132,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://api.example.com/nope');
+      await tick();
 
       const log = logs[0];
       expect(log.success).toBe(false);
@@ -143,11 +153,13 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://example.com/1');
+      await tick();
       expect(handler).toHaveBeenCalledTimes(1);
 
       adapter.eject();
 
       await fetch('https://example.com/2');
+      await tick();
       expect(handler).toHaveBeenCalledTimes(1);
     });
   });
@@ -158,6 +170,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://example.com');
+      await tick();
 
       const log = logs[0];
       expect(log.proxy_host).toBeNull();
@@ -176,6 +189,7 @@ describe('FetchAdapter', () => {
         method: 'POST',
         body: JSON.stringify({ payload: 'test' }),
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeUndefined();
@@ -190,6 +204,7 @@ describe('FetchAdapter', () => {
         method: 'POST',
         body: JSON.stringify({ payload: 'test' }),
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeDefined();
@@ -206,6 +221,7 @@ describe('FetchAdapter', () => {
         method: 'POST',
         body: JSON.stringify({ payload: 'test' }),
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeDefined();
@@ -224,6 +240,7 @@ describe('FetchAdapter', () => {
         method: 'POST',
         body: JSON.stringify(largeData),
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body!.length).toBeLessThanOrEqual(54);
@@ -242,6 +259,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://example.com/health');
+      await tick();
 
       expect(handler).not.toHaveBeenCalled();
     });
@@ -256,6 +274,7 @@ describe('FetchAdapter', () => {
       adapter.install();
 
       await fetch('https://example.com/api/data');
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
     });
