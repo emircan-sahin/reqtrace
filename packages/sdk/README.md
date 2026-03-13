@@ -71,7 +71,7 @@ const res = await fetch('https://api.example.com/users')
 | `serverUrl` | `string` | — | Server URL (required for logging) |
 | `apiKey` | `string` | — | API key for server authentication |
 | `projectName` | `string` | `'default'` | Project name for filtering |
-| `captureBody` | `boolean` | `false` | Log request/response bodies |
+| `captureBody` | `boolean` | `true` | Log request/response bodies |
 | `maxBodySize` | `number` | `51200` | Max body size in bytes |
 | `enabled` | `boolean` | `true` | Enable/disable logging |
 | `filter` | `function` | `() => true` | Skip specific requests |
@@ -113,6 +113,13 @@ pnpm dev
 Open [http://localhost:5173](http://localhost:5173) and create your admin account on first visit. Then use the `API_KEY` from your `.env` as the `apiKey` in your SDK config.
 
 For more details, see the [full documentation](https://github.com/emircan-sahin/reqtrace).
+
+## Contact
+
+Have questions, feedback, or want to contribute? Reach out:
+
+- **LinkedIn**: [Emircan Sahin](https://www.linkedin.com/in/emircan-sahin/)
+- **GitHub**: [@emircan-sahin](https://github.com/emircan-sahin)
 
 ## License
 

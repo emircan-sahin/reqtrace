@@ -94,7 +94,7 @@ const res = await fetch('https://api.example.com/users')
 | `serverUrl` | `string` | — | Server URL (required for logging) |
 | `apiKey` | `string` | — | API key for server authentication |
 | `projectName` | `string` | `'default'` | Project name for filtering |
-| `captureBody` | `boolean` | `false` | Log request/response bodies |
+| `captureBody` | `boolean` | `true` | Log request/response bodies |
 | `maxBodySize` | `number` | `51200` | Max body size in bytes |
 | `enabled` | `boolean` | `true` | Enable/disable logging |
 | `filter` | `function` | `() => true` | Skip specific requests |
@@ -175,6 +175,13 @@ pnpm test           # Run all tests
 | SDK | TypeScript, axios (peer dep), fetch (native), ws |
 | Server | Fastify, @fastify/websocket, @fastify/jwt, @fastify/rate-limit, PostgreSQL, Zod, bcryptjs |
 | Client | React, Tailwind CSS, Zustand, @tanstack/react-virtual |
+
+## Contact
+
+Have questions, feedback, or want to contribute? Reach out:
+
+- **LinkedIn**: [Emircan Sahin](https://www.linkedin.com/in/emircan-sahin/)
+- **GitHub**: [@emircan-sahin](https://github.com/emircan-sahin)
 
 ## License
 
