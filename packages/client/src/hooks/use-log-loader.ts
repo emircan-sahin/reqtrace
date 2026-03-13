@@ -27,7 +27,14 @@ export function useLogLoader() {
   }, []);
 
   // Reset and re-fetch when filters change
+  const abortRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
+    // Cancel in-flight request from previous filter state
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const store = useLogStore.getState();
     store.reset();
 
@@ -35,14 +42,17 @@ export function useLogLoader() {
     if (selectedProject) params.project = selectedProject;
     if (search) params.search = search;
 
-    get<LogsResponse>('/api/logs', params)
+    get<LogsResponse>('/api/logs', params, controller.signal)
       .then((data) => {
+        if (controller.signal.aborted) return;
         const s = useLogStore.getState();
         s.setLogs([...data.logs].reverse());
         s.setHasMore(data.logs.length >= PAGE_SIZE);
         s.setReady(true);
       })
       .catch(() => {});
+
+    return () => controller.abort();
   }, [selectedProject, search]);
 
   const loadMore = useCallback(async () => {

@@ -14,7 +14,7 @@ function handleUnauthorized(res: Response) {
   }
 }
 
-export async function get<T>(path: string, params?: Record<string, string | number>): Promise<T> {
+export async function get<T>(path: string, params?: Record<string, string | number>, signal?: AbortSignal): Promise<T> {
   const url = new URL(`${BASE_URL}${path}`);
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -23,7 +23,7 @@ export async function get<T>(path: string, params?: Record<string, string | numb
       }
     }
   }
-  const res = await fetch(url.toString(), { headers: authHeaders() });
+  const res = await fetch(url.toString(), { headers: authHeaders(), signal });
   handleUnauthorized(res);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();

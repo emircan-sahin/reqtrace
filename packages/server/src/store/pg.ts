@@ -57,7 +57,7 @@ const COLUMNS = `id, project, url, method, status, duration_ms,
   error_message, success, timestamp`;
 
 export class PostgresStore implements LogStore {
-  private insertCounts = new Map<string, number>();
+  private insertsSinceCleanup = new Map<string, number>();
   private buffer: { log: RequestLog; resolve: () => void; reject: (err: unknown) => void }[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -107,14 +107,15 @@ export class PostgresStore implements LogStore {
       );
 
       for (const entry of batch) {
-        const count = (this.insertCounts.get(entry.log.project) ?? 0) + 1;
-        this.insertCounts.set(entry.log.project, count);
+        const count = (this.insertsSinceCleanup.get(entry.log.project) ?? 0) + 1;
+        this.insertsSinceCleanup.set(entry.log.project, count);
       }
 
       const projectsToClean = new Set<string>();
-      for (const entry of batch) {
-        if ((this.insertCounts.get(entry.log.project) ?? 0) % CLEANUP_INTERVAL === 0) {
-          projectsToClean.add(entry.log.project);
+      for (const [project, count] of this.insertsSinceCleanup) {
+        if (count >= CLEANUP_INTERVAL) {
+          projectsToClean.add(project);
+          this.insertsSinceCleanup.set(project, 0);
         }
       }
 
@@ -297,10 +298,13 @@ export class PostgresStore implements LogStore {
 
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    const intervalParam = idx++;
+    params.push(interval);
+
     const result = await this.pool.query(
       `SELECT * FROM (
         SELECT
-          to_timestamp(floor(extract(epoch FROM timestamp) / ${interval}) * ${interval}) AS time,
+          to_timestamp(floor(extract(epoch FROM timestamp) / $${intervalParam}) * $${intervalParam}) AS time,
           project,
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE success = true)::int AS success,

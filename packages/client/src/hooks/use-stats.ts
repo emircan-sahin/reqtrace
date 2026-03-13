@@ -40,17 +40,22 @@ export function useStats(): Stats {
   return useMemo(() => {
     if (!serverStats || !fetchedAt) return EMPTY_STATS;
 
+    // Count logs from the last minute — iterate backwards since logs are
+    // in chronological order, so we can stop early (O(k) instead of O(n))
+    const cutoff = new Date(Date.now() - 60_000).toISOString();
+    let recentCount = 0;
+    for (let i = filteredLogs.length - 1; i >= 0; i--) {
+      if (filteredLogs[i].timestamp >= cutoff) {
+        recentCount++;
+      } else {
+        break;
+      }
+    }
+
     // Only merge logs that arrived via WS after we fetched stats
     const newLogs = filteredLogs.filter((l) => l.timestamp > fetchedAt);
 
     if (newLogs.length === 0) {
-      // Requests per minute: always compute client-side for freshness
-      const now = Date.now();
-      const oneMinuteAgo = now - 60_000;
-      const recentCount = filteredLogs.filter(
-        (l) => new Date(l.timestamp).getTime() >= oneMinuteAgo,
-      ).length;
-
       return { ...serverStats, requests_per_minute: recentCount };
     }
 
@@ -71,12 +76,6 @@ export function useStats(): Stats {
 
     const total = serverStats.total_requests + newLogs.length;
     const serverTotalDuration = serverStats.avg_duration_ms * serverStats.total_requests;
-
-    const now = Date.now();
-    const oneMinuteAgo = now - 60_000;
-    const recentCount = filteredLogs.filter(
-      (l) => new Date(l.timestamp).getTime() >= oneMinuteAgo,
-    ).length;
 
     return {
       total_requests: total,
