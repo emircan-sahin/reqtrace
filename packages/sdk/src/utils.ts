@@ -19,12 +19,8 @@ export function truncateBody(body: unknown, maxBytes: number): string {
     return str;
   }
 
-  // Truncate by slicing until we're under the byte limit
-  let truncated = str;
-  while (Buffer.byteLength(truncated, 'utf-8') > maxBytes) {
-    truncated = truncated.slice(0, truncated.length - 1);
-  }
-
+  // Truncate by slicing buffer directly — O(1) instead of O(n²)
+  const truncated = Buffer.from(str, 'utf-8').subarray(0, maxBytes).toString('utf-8');
   return truncated + '…';
 }
 

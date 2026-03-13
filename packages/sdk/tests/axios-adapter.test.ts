@@ -50,6 +50,9 @@ function mockAxiosHttpError(
   };
 }
 
+// Wait for setImmediate callbacks (deferred log dispatch) to flush
+const tick = () => new Promise(resolve => setImmediate(resolve));
+
 describe('AxiosAdapter', () => {
   let instance: AxiosInstance;
   let handler: ReturnType<typeof vi.fn>;
@@ -71,6 +74,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://api.example.com/data');
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
       const log = logs[0];
@@ -88,6 +92,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.post('https://api.example.com/items', { name: 'test' });
+      await tick();
 
       const log = logs[0];
       expect(log.method).toBe('POST');
@@ -100,6 +105,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://api.example.com/data');
+      await tick();
 
       expect(logs[0].response_size_bytes).toBe(10);
     });
@@ -111,6 +117,7 @@ describe('AxiosAdapter', () => {
       await instance.get('https://api.example.com/data', {
         headers: { 'X-Custom': 'test-value' },
       });
+      await tick();
 
       const log = logs[0];
       expect(log.request_headers['X-Custom']).toBe('test-value');
@@ -124,6 +131,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await expect(instance.get('https://api.example.com/data')).rejects.toThrow();
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
       const log = logs[0];
@@ -137,6 +145,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await expect(instance.get('https://api.example.com/nope')).rejects.toThrow();
+      await tick();
 
       const log = logs[0];
       expect(log.success).toBe(false);
@@ -158,11 +167,13 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://example.com/1');
+      await tick();
       expect(handler).toHaveBeenCalledTimes(1);
 
       adapter.eject();
 
       await instance.get('https://example.com/2');
+      await tick();
       expect(handler).toHaveBeenCalledTimes(1); // no new log
     });
   });
@@ -175,6 +186,7 @@ describe('AxiosAdapter', () => {
       await instance.get('https://example.com', {
         proxy: { host: '127.0.0.1', port: 8080 },
       });
+      await tick();
 
       const log = logs[0];
       expect(log.proxy_host).toBe('127.0.0.1');
@@ -190,6 +202,7 @@ describe('AxiosAdapter', () => {
           proxy: new URL('http://10.0.0.1:3128'),
         },
       } as any);
+      await tick();
 
       const log = logs[0];
       expect(log.proxy_host).toBe('10.0.0.1');
@@ -201,6 +214,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://example.com');
+      await tick();
 
       const log = logs[0];
       expect(log.proxy_host).toBeNull();
@@ -216,6 +230,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.post('https://example.com', { payload: 'test' });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeUndefined();
@@ -227,6 +242,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.post('https://example.com', { payload: 'test' });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeDefined();
@@ -240,6 +256,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.post('https://example.com', { payload: 'test' });
+      await tick();
 
       const log = logs[0];
       expect(log.request_body).toBeDefined();
@@ -255,6 +272,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.post('https://example.com', largeData);
+      await tick();
 
       const log = logs[0];
       expect(log.request_body!.length).toBeLessThanOrEqual(54); // 50 + "…"(3 bytes) + tolerance
@@ -273,6 +291,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://example.com/health');
+      await tick();
 
       expect(handler).not.toHaveBeenCalled();
     });
@@ -287,6 +306,7 @@ describe('AxiosAdapter', () => {
       adapter.install();
 
       await instance.get('https://example.com/api/data');
+      await tick();
 
       expect(handler).toHaveBeenCalledOnce();
     });

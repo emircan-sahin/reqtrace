@@ -63,16 +63,19 @@ export class AxiosAdapter implements ReqtraceAdapter {
 
     this.responseInterceptorId = this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
-        this.buildAndSendLog(response.config, response);
+        const endTime = Date.now();
+        setImmediate(() => this.buildAndSendLog(response.config, response, undefined, endTime));
         return response;
       },
       (error: AxiosError) => {
         if (error.config) {
-          this.buildAndSendLog(
+          const endTime = Date.now();
+          setImmediate(() => this.buildAndSendLog(
             error.config as InternalAxiosRequestConfig,
             error.response ?? null,
             error,
-          );
+            endTime,
+          ));
         }
         return Promise.reject(error);
       },
@@ -94,17 +97,40 @@ export class AxiosAdapter implements ReqtraceAdapter {
     reqConfig: InternalAxiosRequestConfig,
     response: AxiosResponse | null,
     error?: AxiosError,
+    endTime?: number,
   ): void {
     const url = reqConfig.url ?? '';
     const method = (reqConfig.method ?? 'GET').toUpperCase();
 
     if (!this.core.shouldLog(url, method)) return;
 
-    const start = reqConfig.__reqtrace_start ?? Date.now();
-    const duration_ms = Date.now() - start;
+    const end = endTime ?? Date.now();
+    const start = reqConfig.__reqtrace_start ?? end;
+    const duration_ms = end - start;
 
     const { host: proxyHost, port: proxyPort } = this.extractProxy(reqConfig);
     const coreConfig = this.core.getConfig();
+
+    // When captureBody is enabled, reuse the serialized body for size calculation
+    // to avoid double JSON.stringify on large response objects
+    let responseSizeBytes: number | null = null;
+    let responseBodyStr: string | undefined;
+
+    if (response) {
+      if (coreConfig.captureBody && response.data !== undefined) {
+        responseBodyStr = truncateBody(response.data, coreConfig.maxBodySize);
+        // Prefer content-length header for accurate size, fall back to serialized body length
+        const contentLength = response.headers?.['content-length'];
+        if (contentLength) {
+          const parsed = parseInt(contentLength, 10);
+          responseSizeBytes = isNaN(parsed) ? Buffer.byteLength(responseBodyStr, 'utf-8') : parsed;
+        } else {
+          responseSizeBytes = Buffer.byteLength(responseBodyStr, 'utf-8');
+        }
+      } else {
+        responseSizeBytes = this.getResponseSize(response);
+      }
+    }
 
     const log: RequestLog = {
       id: reqConfig.__reqtrace_id ?? randomUUID(),
@@ -115,9 +141,7 @@ export class AxiosAdapter implements ReqtraceAdapter {
       duration_ms,
       proxy_host: proxyHost,
       proxy_port: proxyPort,
-      response_size_bytes: response
-        ? this.getResponseSize(response)
-        : null,
+      response_size_bytes: responseSizeBytes,
       request_headers: flattenHeaders(reqConfig.headers),
       response_headers: response ? flattenHeaders(response.headers) : {},
       error_message: error?.message ?? null,
@@ -129,8 +153,8 @@ export class AxiosAdapter implements ReqtraceAdapter {
       if (reqConfig.__reqtrace_request_body) {
         log.request_body = reqConfig.__reqtrace_request_body;
       }
-      if (response?.data !== undefined) {
-        log.response_body = truncateBody(response.data, coreConfig.maxBodySize);
+      if (responseBodyStr !== undefined) {
+        log.response_body = responseBodyStr;
       }
     }
 
