@@ -7,7 +7,17 @@
     "url": "https://github.com/emircan-sahin/reqtrace.git",
     "directory": "packages/sdk"
   },
-  "keywords": ["http", "monitoring", "proxy", "axios", "fetch", "websocket", "request-logger", "self-hosted"],
+  "keywords": [
+    "http",
+    "monitoring",
+    "proxy",
+    "axios",
+    "fetch",
+    "cycletls",
+    "websocket",
+    "request-logger",
+    "self-hosted"
+  ],
   "author": "Emircan Sahin",
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
@@ -31,10 +41,14 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "axios": ">=0.21.0"
+    "axios": ">=0.21.0",
+    "cycletls": ">=1.0.0"
   },
   "peerDependenciesMeta": {
     "axios": {
+      "optional": true
+    },
+    "cycletls": {
       "optional": true
     }
   },
@@ -42,6 +56,7 @@
     "@types/node": "^25.4.0",
     "@types/ws": "^8.18.1",
     "axios": "^1.7.0",
+    "cycletls": "^2.0.5",
     "tsx": "^4.21.0",
     "typescript": "^5.5.0",
     "vitest": "^2.0.0"
