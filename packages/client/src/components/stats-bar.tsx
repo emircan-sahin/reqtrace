@@ -10,13 +10,16 @@ import {
 import { useStats } from '@/hooks/use-stats';
 import { useConnectionStore } from '@/stores/use-connection-store';
 
-const INTERVALS = [
-  { value: '60', label: '1m' },
-  { value: '300', label: '5m' },
-  { value: '900', label: '15m' },
+const RANGES = [
   { value: '1800', label: '30m' },
   { value: '3600', label: '1h' },
+  { value: '7200', label: '2h' },
   { value: '14400', label: '4h' },
+  { value: '43200', label: '12h' },
+  { value: '86400', label: '1d' },
+  { value: '604800', label: '7d' },
+  { value: '1209600', label: '14d' },
+  { value: '2592000', label: '30d' },
 ];
 
 export function StatsBar() {
@@ -25,8 +28,8 @@ export function StatsBar() {
   const toggleAutoScroll = useConnectionStore((s) => s.toggleAutoScroll);
   const chartsOpen = useConnectionStore((s) => s.chartsOpen);
   const toggleCharts = useConnectionStore((s) => s.toggleCharts);
-  const chartInterval = useConnectionStore((s) => s.chartInterval);
-  const setChartInterval = useConnectionStore((s) => s.setChartInterval);
+  const chartRange = useConnectionStore((s) => s.chartRange);
+  const setChartRange = useConnectionStore((s) => s.setChartRange);
   const manualPaused = useConnectionStore((s) => s.manualPaused);
   const toggleManualPaused = useConnectionStore((s) => s.toggleManualPaused);
 
@@ -45,16 +48,16 @@ export function StatsBar() {
       <div className="ml-auto flex items-center gap-2">
         {chartsOpen && (
           <Select
-            value={String(chartInterval)}
-            onValueChange={(v) => setChartInterval(Number(v))}
+            value={String(chartRange)}
+            onValueChange={(v) => setChartRange(Number(v))}
           >
-            <SelectTrigger size="sm" className="w-[72px] text-sm shadow-none">
+            <SelectTrigger size="sm" className="w-[84px] text-sm shadow-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {INTERVALS.map((i) => (
-                <SelectItem key={i.value} value={i.value} className="text-xs">
-                  {i.label}
+              {RANGES.map((r) => (
+                <SelectItem key={r.value} value={r.value} className="text-xs">
+                  {r.label}
                 </SelectItem>
               ))}
             </SelectContent>

@@ -4,7 +4,7 @@ interface ConnectionState {
   connected: boolean;
   autoScroll: boolean;
   chartsOpen: boolean;
-  chartInterval: number;
+  chartRange: number;
   hoverPaused: boolean;
   manualPaused: boolean;
   stale: boolean;
@@ -12,7 +12,7 @@ interface ConnectionState {
   setAutoScroll: (v: boolean) => void;
   toggleAutoScroll: () => void;
   toggleCharts: () => void;
-  setChartInterval: (v: number) => void;
+  setChartRange: (v: number) => void;
   setHoverPaused: (v: boolean) => void;
   toggleManualPaused: () => void;
   setStale: (v: boolean) => void;
@@ -22,7 +22,7 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   connected: false,
   autoScroll: true,
   chartsOpen: false,
-  chartInterval: 60,
+  chartRange: 1800,
   hoverPaused: false,
   manualPaused: false,
   stale: false,
@@ -31,7 +31,7 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   setAutoScroll: (autoScroll) => set({ autoScroll }),
   toggleAutoScroll: () => set((s) => ({ autoScroll: !s.autoScroll })),
   toggleCharts: () => set((s) => ({ chartsOpen: !s.chartsOpen })),
-  setChartInterval: (chartInterval) => set({ chartInterval }),
+  setChartRange: (chartRange) => set({ chartRange }),
   setHoverPaused: (hoverPaused) => set({ hoverPaused }),
   toggleManualPaused: () => set((s) => ({ manualPaused: !s.manualPaused })),
   setStale: (stale) => set({ stale }),

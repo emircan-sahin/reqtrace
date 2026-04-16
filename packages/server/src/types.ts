@@ -48,6 +48,7 @@ export interface LogFilter {
   to?: string;
   limit?: number;
   offset?: number;
+  cursor?: string;
 }
 
 export interface StatsResult {
@@ -86,7 +87,7 @@ export interface LogStore {
   list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }>;
   projects(): Promise<string[]>;
   stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
-  chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]>;
+  chartStats(filter?: { project?: string; search?: string; range?: number }): Promise<ChartBucket[]>;
   proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]>;
   count(): Promise<number>;
   clear(): Promise<void>;

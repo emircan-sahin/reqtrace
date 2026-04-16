@@ -45,10 +45,11 @@ function rowToSummary(row: Record<string, unknown>): LogSummary {
   };
 }
 
-const MAX_PER_PROJECT = 5_000;
-const CLEANUP_INTERVAL = 100;
+const MAX_PER_PROJECT = 1_000_000;
+const CLEANUP_INTERVAL = 1_000;
 const FLUSH_INTERVAL = 200;
 const FLUSH_MAX = 50;
+const STATS_CACHE_TTL_MS = 5_000;
 
 const COLUMNS = `id, project, url, method, status, duration_ms,
   proxy_host, proxy_port, response_size_bytes,
@@ -60,6 +61,8 @@ export class PostgresStore implements LogStore {
   private insertsSinceCleanup = new Map<string, number>();
   private buffer: { log: RequestLog; resolve: () => void; reject: (err: unknown) => void }[] = [];
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private statsCache = new Map<string, { at: number; data: StatsResult }>();
+  private chartCache = new Map<string, { at: number; data: ChartBucket[] }>();
 
   constructor(private pool: pg.Pool) {}
 
@@ -121,12 +124,14 @@ export class PostgresStore implements LogStore {
 
       for (const project of projectsToClean) {
         await this.pool.query(
-          `DELETE FROM request_logs WHERE id IN (
-            SELECT id FROM request_logs
-            WHERE project = $1
-            ORDER BY timestamp DESC
-            OFFSET $2
-          )`,
+          `DELETE FROM request_logs
+           WHERE project = $1
+             AND timestamp < (
+               SELECT timestamp FROM request_logs
+               WHERE project = $1
+               ORDER BY timestamp DESC
+               OFFSET $2 LIMIT 1
+             )`,
           [project, MAX_PER_PROJECT],
         );
       }
@@ -192,26 +197,48 @@ export class PostgresStore implements LogStore {
       params.push(filter.to);
     }
 
+    let cursorTs: string | null = null;
+    let cursorId: string | null = null;
+    if (filter.cursor) {
+      try {
+        const decoded = Buffer.from(filter.cursor, 'base64').toString('utf8');
+        const sep = decoded.indexOf('|');
+        if (sep > 0) {
+          cursorTs = decoded.slice(0, sep);
+          cursorId = decoded.slice(sep + 1);
+        }
+      } catch {
+        cursorTs = null;
+        cursorId = null;
+      }
+    }
+
+    if (cursorTs && cursorId) {
+      conditions.push(`(timestamp, id) < ($${idx}, $${idx + 1})`);
+      params.push(cursorTs, cursorId);
+      idx += 2;
+    }
+
     const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
-
-    const countResult = await this.pool.query(
-      `SELECT COUNT(*)::int AS total FROM request_logs ${where}`,
-      params,
-    );
-    const total = countResult.rows[0].total;
-
     const limit = filter.limit ?? 100;
-    const offset = filter.offset ?? 0;
+
+    const offset = cursorTs && cursorId ? 0 : filter.offset ?? 0;
 
     const dataResult = await this.pool.query(
-      `SELECT ${SUMMARY_COLUMNS} FROM request_logs ${where} ORDER BY timestamp DESC LIMIT $${idx++} OFFSET $${idx++}`,
+      `SELECT ${SUMMARY_COLUMNS} FROM request_logs ${where} ORDER BY timestamp DESC, id DESC LIMIT $${idx++} OFFSET $${idx++}`,
       [...params, limit, offset],
     );
 
-    return { logs: dataResult.rows.map(rowToSummary), total };
+    return { logs: dataResult.rows.map(rowToSummary), total: dataResult.rows.length };
   }
 
   async stats(filter?: { project?: string; search?: string }): Promise<StatsResult> {
+    const cacheKey = `${filter?.project ?? ''}|${filter?.search ?? ''}`;
+    const cached = this.statsCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < STATS_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
     const conditions: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
@@ -262,7 +289,7 @@ export class PostgresStore implements LogStore {
     );
 
     const row = result.rows[0];
-    return {
+    const data: StatsResult = {
       total_requests: row.total_requests,
       success_count: row.success_count,
       error_count: row.error_count,
@@ -271,13 +298,21 @@ export class PostgresStore implements LogStore {
       status_codes: typeof row.status_codes === 'string' ? JSON.parse(row.status_codes) : row.status_codes,
       requests_per_minute: row.requests_per_minute,
     };
+    this.statsCache.set(cacheKey, { at: Date.now(), data });
+    return data;
   }
 
-  async chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]> {
+  async chartStats(filter?: { project?: string; search?: string; range?: number }): Promise<ChartBucket[]> {
+    const cacheKey = `${filter?.project ?? ''}|${filter?.search ?? ''}|${filter?.range ?? 1800}`;
+    const cached = this.chartCache.get(cacheKey);
+    if (cached && Date.now() - cached.at < STATS_CACHE_TTL_MS) {
+      return cached.data;
+    }
     const conditions: string[] = [];
     const params: unknown[] = [];
     let idx = 1;
-    const interval = filter?.interval ?? 60;
+    const range = filter?.range ?? 1800;
+    const bucketSec = Math.max(1, Math.floor(range / 30));
 
     if (filter?.project) {
       conditions.push(`project = $${idx++}`);
@@ -296,15 +331,19 @@ export class PostgresStore implements LogStore {
       idx++;
     }
 
-    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rangeParam = idx++;
+    params.push(range);
+    conditions.push(`timestamp >= NOW() - ($${rangeParam} || ' seconds')::interval`);
 
-    const intervalParam = idx++;
-    params.push(interval);
+    const where = `WHERE ${conditions.join(' AND ')}`;
+
+    const bucketParam = idx++;
+    params.push(bucketSec);
 
     const result = await this.pool.query(
       `SELECT * FROM (
         SELECT
-          to_timestamp(floor(extract(epoch FROM timestamp) / $${intervalParam}) * $${intervalParam}) AS time,
+          to_timestamp(floor(extract(epoch FROM timestamp) / $${bucketParam}) * $${bucketParam}) AS time,
           project,
           COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE success = true)::int AS success,
@@ -313,12 +352,12 @@ export class PostgresStore implements LogStore {
         FROM request_logs ${where}
         GROUP BY time, project
         ORDER BY time DESC
-        LIMIT 60
+        LIMIT 30
       ) t ORDER BY time ASC`,
       params,
     );
 
-    return result.rows.map((row) => ({
+    const data = result.rows.map((row) => ({
       time: row.time instanceof Date ? row.time.toISOString() : row.time as string,
       project: row.project as string,
       total: row.total as number,
@@ -326,6 +365,8 @@ export class PostgresStore implements LogStore {
       errors: row.errors as number,
       avg_duration: row.avg_duration as number,
     }));
+    this.chartCache.set(cacheKey, { at: Date.now(), data });
+    return data;
   }
 
   async proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]> {
@@ -390,6 +431,8 @@ export class PostgresStore implements LogStore {
 
   async clear(): Promise<void> {
     await this.pool.query(`DELETE FROM request_logs`);
+    this.statsCache.clear();
+    this.chartCache.clear();
   }
 
   async close(): Promise<void> {

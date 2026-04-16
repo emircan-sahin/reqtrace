@@ -63,6 +63,22 @@ export class InMemoryStore implements LogStore {
     // newest first
     result = [...result].reverse();
 
+    if (filter.cursor) {
+      try {
+        const decoded = Buffer.from(filter.cursor, 'base64').toString('utf8');
+        const sep = decoded.indexOf('|');
+        if (sep > 0) {
+          const cursorTs = decoded.slice(0, sep);
+          const cursorId = decoded.slice(sep + 1);
+          result = result.filter(
+            (l) => l.timestamp < cursorTs || (l.timestamp === cursorTs && l.id < cursorId),
+          );
+        }
+      } catch {
+        // ignore invalid cursor
+      }
+    }
+
     const offset = filter.offset ?? 0;
     const limit = filter.limit ?? 100;
     result = result.slice(offset, offset + limit);
@@ -133,9 +149,11 @@ export class InMemoryStore implements LogStore {
     };
   }
 
-  async chartStats(filter?: { project?: string; search?: string; interval?: number }): Promise<ChartBucket[]> {
-    const interval = (filter?.interval ?? 60) * 1000;
-    let logs = this.logs;
+  async chartStats(filter?: { project?: string; search?: string; range?: number }): Promise<ChartBucket[]> {
+    const range = filter?.range ?? 1800;
+    const bucketMs = Math.max(1, Math.floor(range / 30)) * 1000;
+    const cutoff = Date.now() - range * 1000;
+    let logs = this.logs.filter((l) => new Date(l.timestamp).getTime() >= cutoff);
 
     if (filter?.project) {
       logs = logs.filter((l) => l.project === filter.project);
@@ -155,7 +173,7 @@ export class InMemoryStore implements LogStore {
 
     for (const log of logs) {
       const epoch = new Date(log.timestamp).getTime();
-      const time = new Date(Math.floor(epoch / interval) * interval).toISOString();
+      const time = new Date(Math.floor(epoch / bucketMs) * bucketMs).toISOString();
       const key = `${time}|${log.project}`;
 
       const existing = map.get(key);

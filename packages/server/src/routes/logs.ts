@@ -34,6 +34,7 @@ export function logsRoutes(store: LogStore, broadcast: BroadcastManager) {
         to: q.to,
         limit: q.limit !== undefined ? Number(q.limit) : undefined,
         offset: q.offset !== undefined ? Number(q.offset) : undefined,
+        cursor: q.cursor,
       };
 
       return await store.list(filter);

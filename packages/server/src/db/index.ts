@@ -29,6 +29,8 @@ export async function initDb(pool: pg.Pool): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_request_logs_timestamp ON request_logs(timestamp DESC);
     CREATE INDEX IF NOT EXISTS idx_request_logs_method ON request_logs(method);
     CREATE INDEX IF NOT EXISTS idx_request_logs_success ON request_logs(success);
+    CREATE INDEX IF NOT EXISTS idx_request_logs_project_timestamp ON request_logs(project, timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_request_logs_project_id ON request_logs(project, id);
 
     CREATE TABLE IF NOT EXISTS users (
       id SERIAL PRIMARY KEY,

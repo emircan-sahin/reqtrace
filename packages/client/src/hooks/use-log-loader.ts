@@ -61,12 +61,15 @@ export function useLogLoader() {
     loadingRef.current = true;
 
     try {
-      const params: Record<string, string | number> = {
-        limit: PAGE_SIZE,
-        offset: logs.length,
-      };
+      const params: Record<string, string | number> = { limit: PAGE_SIZE };
       if (selectedProject) params.project = selectedProject;
       if (search) params.search = search;
+
+      // Keyset cursor: oldest loaded log (logs stored oldest-first in store)
+      const oldest = logs[0];
+      if (oldest) {
+        params.cursor = btoa(`${oldest.timestamp}|${oldest.id}`);
+      }
 
       const data = await get<LogsResponse>('/api/logs', params);
       const older = [...data.logs].reverse();
