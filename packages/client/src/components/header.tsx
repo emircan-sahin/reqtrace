@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/use-auth-store';
 import { del, post } from '@/services/http';
 import { SearchInput } from './search-input';
 import { ProjectFilter } from './project-filter';
+import { FilterBar } from './filter-bar';
 
 export function Header() {
   const connected = useConnectionStore((s) => s.connected);
@@ -43,6 +44,7 @@ export function Header() {
         </Badge>
       </div>
       <div className="flex items-center gap-2">
+        <FilterBar />
         <SearchInput />
         <ProjectFilter />
         <Button variant="outline" size="sm" onClick={handleClear}>
