@@ -7,6 +7,7 @@ import { MethodBadge } from './method-badge';
 import { ProtocolBadge } from './protocol-badge';
 import { ProxyBadge } from './proxy-badge';
 import { DetailPanel } from './detail-panel';
+import { useFilterStore } from '@/stores/use-filter-store';
 
 export function PendingEntry({ entry }: { entry: RequestStart }) {
   return (
@@ -39,6 +40,7 @@ export function CompletedEntry({ log }: { log: LogSummary }) {
   const protocol = getProtocol(log.url);
   const hasProxy = log.proxy_host !== null;
   const isError = !log.success || (log.status !== null && log.status >= 400);
+  const setSelectedProxy = useFilterStore((s) => s.setSelectedProxy);
 
   return (
     <div className={`group border-b transition-all ${expanded ? 'border-border' : 'border-border/50 hover:brightness-125'} ${isError && !expanded ? 'border-l-2 border-l-red-500/40 bg-red-500/[0.03]' : ''} ${isError && expanded ? 'border-l-2 border-l-red-500/60 bg-red-500/[0.06]' : ''}`}>
@@ -61,7 +63,13 @@ export function CompletedEntry({ log }: { log: LogSummary }) {
           {log.url}
         </span>
         <ProtocolBadge protocol={protocol} />
-        {hasProxy && <ProxyBadge host={log.proxy_host!} port={log.proxy_port} />}
+        {hasProxy && (
+          <ProxyBadge
+            host={log.proxy_host!}
+            port={log.proxy_port}
+            onClick={() => setSelectedProxy(log.proxy_port ? `${log.proxy_host}:${log.proxy_port}` : log.proxy_host!)}
+          />
+        )}
         <span className="flex-1" />
         <span className={`text-xs font-mono w-16 text-right ${durationColor(log.duration_ms)}`}>
           {log.duration_ms}ms
