@@ -80,8 +80,9 @@ export function ProxyResponseSizeChart({
               <Bar
                 key={name}
                 dataKey={name}
+                stackId="a"
                 fill={CHART_COLORS[i % CHART_COLORS.length]}
-                radius={[2, 2, 0, 0]}
+                radius={i === projectNames.length - 1 ? [2, 2, 0, 0] : 0}
                 onClick={handleBarClick}
                 className="cursor-pointer"
                 style={{ cursor: 'pointer' }}
