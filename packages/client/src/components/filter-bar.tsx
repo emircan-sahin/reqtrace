@@ -17,6 +17,7 @@ export function FilterBar() {
   const setMode = useFilterStore((s) => s.setMode);
   const setStatusRange = useFilterStore((s) => s.setStatusRange);
   const setSelectedProxy = useFilterStore((s) => s.setSelectedProxy);
+  const clearFilters = useFilterStore((s) => s.clearFilters);
 
   const hasActiveFilters = mode !== 'all' || statusRange !== 'all' || selectedProxy !== null;
 
@@ -74,11 +75,7 @@ export function FilterBar() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => {
-            setMode('all');
-            setStatusRange('all');
-            setSelectedProxy(null);
-          }}
+          onClick={clearFilters}
           className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
         >
           Clear
