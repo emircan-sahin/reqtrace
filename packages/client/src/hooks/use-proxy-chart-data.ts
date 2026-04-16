@@ -28,6 +28,20 @@ export interface ProxyResponseSizeData {
   [project: string]: number | string;
 }
 
+function sortProxyEntries(
+  proxyEntries: Array<[string, ProxyBucket[]]>,
+  getTotal: (bucket: ProxyBucket) => number,
+) {
+  return [...proxyEntries].sort((a, b) => {
+    const totalA = a[1].reduce((sum, bucket) => sum + getTotal(bucket), 0);
+    const totalB = b[1].reduce((sum, bucket) => sum + getTotal(bucket), 0);
+
+    if (totalA !== totalB) return totalB - totalA;
+
+    return a[0].localeCompare(b[0]);
+  });
+}
+
 function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
   const allBuckets = [...bucketMap.values()];
   const projectSet = new Set<string>();
@@ -39,16 +53,16 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
     proxyMap.get(b.proxy)!.push(b);
   }
 
-  // Sort proxies by total count descending
-  const sortedProxies = [...proxyMap.entries()]
-    .sort((a, b) => {
-      const totalA = a[1].reduce((s, x) => s + x.count, 0);
-      const totalB = b[1].reduce((s, x) => s + x.count, 0);
-      return totalB - totalA;
-    })
-    .map(([proxy]) => proxy);
+  const proxyEntries = [...proxyMap.entries()];
+  const requestSortedProxies = sortProxyEntries(proxyEntries, (bucket) => bucket.count).map(
+    ([proxy]) => proxy,
+  );
+  const responseSizeSortedProxies = sortProxyEntries(
+    proxyEntries,
+    (bucket) => bucket.total_size,
+  ).map(([proxy]) => proxy);
 
-  const requestData: ProxyRequestData[] = sortedProxies.map((proxy) => {
+  const requestData: ProxyRequestData[] = requestSortedProxies.map((proxy) => {
     const entry: ProxyRequestData = { proxy };
     for (const b of proxyMap.get(proxy)!) {
       entry[b.project] = ((entry[b.project] as number) ?? 0) + b.count;
@@ -56,7 +70,7 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
     return entry;
   });
 
-  const responseSizeData: ProxyResponseSizeData[] = sortedProxies.map((proxy) => {
+  const responseSizeData: ProxyResponseSizeData[] = responseSizeSortedProxies.map((proxy) => {
     const entry: ProxyResponseSizeData = { proxy };
     for (const b of proxyMap.get(proxy)!) {
       entry[b.project] = ((entry[b.project] as number) ?? 0) + b.total_size;
@@ -64,7 +78,7 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
     return entry;
   });
 
-  const successErrorData: ProxySuccessErrorData[] = sortedProxies.map((proxy) => {
+  const successErrorData: ProxySuccessErrorData[] = requestSortedProxies.map((proxy) => {
     let success = 0;
     let errors = 0;
     for (const b of proxyMap.get(proxy)!) {
