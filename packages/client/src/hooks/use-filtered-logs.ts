@@ -67,16 +67,20 @@ export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending
   const filteredPending = useMemo(() => {
     const hasFilters = selectedProject || search || selectedProxy || statusRange !== 'all' || mode !== 'all';
     if (!hasFilters) return pending;
-    
+
+    // pending entries have no status or proxy — these filters remove all pending
+    if (selectedProxy || statusRange !== 'all' || mode === 'success' || mode === 'error') {
+      return new Map<string, RequestStart>();
+    }
+
     const filtered = new Map(pending);
     for (const [id, entry] of filtered) {
       const projectMatch = !selectedProject || entry.project === selectedProject;
       const searchMatch = !search || matchesSearch(entry.url) || matchesSearch(entry.method);
-      const proxyMatch = !selectedProxy;
-      if (!projectMatch || !searchMatch || !proxyMatch) filtered.delete(id);
+      if (!projectMatch || !searchMatch) filtered.delete(id);
     }
     return filtered;
-  }, [pending, selectedProject, search, selectedProxy, matchesSearch]);
+  }, [pending, selectedProject, search, selectedProxy, statusRange, mode, matchesSearch]);
 
   return { filteredLogs, filteredPending };
 }
