@@ -38,10 +38,8 @@ export function StatsBar() {
   return (
     <div className="flex items-center gap-6 px-4 py-3 bg-popover border-b border-border text-sm">
       <Stat label="Total" value={stats.total_requests} />
-      <div className="flex flex-col gap-0.5">
-        <Stat label="Success" value={`${successRate}%`} color="text-emerald-400" />
-        <Stat label="Errors" value={stats.error_count} color="text-red-400" />
-      </div>
+      <Stat label="Success" value={`${successRate}%`} color="text-emerald-400" />
+      <Stat label="Errors" value={stats.error_count} color="text-red-400" />
       <Stat label="Avg" value={`${stats.avg_duration_ms}ms`} color="text-blue-400" />
       <Stat label="Req/min" value={stats.requests_per_minute} color="text-amber-400" />
       <div className="ml-auto flex items-center gap-2">
