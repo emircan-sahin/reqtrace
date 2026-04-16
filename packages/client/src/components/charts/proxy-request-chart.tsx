@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ProxyRequestData } from '@/hooks/use-proxy-chart-data';
+import { useFilterStore } from '@/stores/use-filter-store';
 
 const CHART_COLORS = [
   'var(--color-chart-1)',
@@ -23,6 +24,14 @@ export function ProxyRequestChart({
   data: ProxyRequestData[];
   projectNames: string[];
 }) {
+  const selectedProxy = useFilterStore((s) => s.selectedProxy);
+  const setSelectedProxy = useFilterStore((s) => s.setSelectedProxy);
+
+  const handleBarClick = (data: any) => {
+    const entry = data as ProxyRequestData;
+    setSelectedProxy(entry.proxy === selectedProxy ? null : entry.proxy);
+  };
+
   const chartConfig = projectNames.reduce<ChartConfig>((acc, name, i) => {
     acc[name] = {
       label: name,
@@ -62,6 +71,9 @@ export function ProxyRequestChart({
                 stackId="a"
                 fill={CHART_COLORS[i % CHART_COLORS.length]}
                 radius={i === projectNames.length - 1 ? [2, 2, 0, 0] : 0}
+                onClick={handleBarClick}
+                className="cursor-pointer"
+                style={{ cursor: 'pointer' }}
               />
             ))}
           </BarChart>

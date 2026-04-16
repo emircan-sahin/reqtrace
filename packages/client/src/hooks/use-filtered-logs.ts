@@ -49,7 +49,11 @@ export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending
       );
     }
     if (selectedProxy) {
-      result = result.filter((l) => l.proxy_host === selectedProxy);
+      result = result.filter((l) => {
+        if (!l.proxy_host) return false;
+        const proxyString = l.proxy_port ? `${l.proxy_host}:${l.proxy_port}` : l.proxy_host;
+        return proxyString === selectedProxy;
+      });
     }
     if (statusRange !== 'all') {
       result = result.filter((l) => matchesStatusRange(l.status));
@@ -68,7 +72,7 @@ export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending
     for (const [id, entry] of filtered) {
       const projectMatch = !selectedProject || entry.project === selectedProject;
       const searchMatch = !search || matchesSearch(entry.url) || matchesSearch(entry.method);
-      const proxyMatch = !selectedProxy || false;
+      const proxyMatch = !selectedProxy;
       if (!projectMatch || !searchMatch || !proxyMatch) filtered.delete(id);
     }
     return filtered;

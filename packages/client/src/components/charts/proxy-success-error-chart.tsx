@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { ProxySuccessErrorData } from '@/hooks/use-proxy-chart-data';
+import { useFilterStore } from '@/stores/use-filter-store';
 
 const chartConfig = {
   success: { label: 'Success', color: 'oklch(0.696 0.17 162.48)' },
@@ -14,6 +15,14 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function ProxySuccessErrorChart({ data }: { data: ProxySuccessErrorData[] }) {
+  const selectedProxy = useFilterStore((s) => s.selectedProxy);
+  const setSelectedProxy = useFilterStore((s) => s.setSelectedProxy);
+
+  const handleBarClick = (data: any) => {
+    const entry = data as ProxySuccessErrorData;
+    setSelectedProxy(entry.proxy === selectedProxy ? null : entry.proxy);
+  };
+
   return (
     <Card className="gap-0 py-0">
       <CardHeader className="px-4 py-3">
@@ -38,8 +47,22 @@ export function ProxySuccessErrorChart({ data }: { data: ProxySuccessErrorData[]
               allowDecimals={false}
             />
             <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="success" fill="var(--color-success)" radius={[2, 2, 0, 0]} />
-            <Bar dataKey="errors" fill="var(--color-errors)" radius={[2, 2, 0, 0]} />
+            <Bar
+              dataKey="success"
+              fill="var(--color-success)"
+              radius={[2, 2, 0, 0]}
+              onClick={handleBarClick}
+              className="cursor-pointer"
+              style={{ cursor: 'pointer' }}
+            />
+            <Bar
+              dataKey="errors"
+              fill="var(--color-errors)"
+              radius={[2, 2, 0, 0]}
+              onClick={handleBarClick}
+              className="cursor-pointer"
+              style={{ cursor: 'pointer' }}
+            />
           </BarChart>
         </ChartContainer>
       </CardContent>
