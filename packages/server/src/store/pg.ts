@@ -430,7 +430,15 @@ export class PostgresStore implements LogStore {
   }
 
   async clear(): Promise<void> {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    const dropped = this.buffer.splice(0);
+    for (const entry of dropped) entry.resolve();
+
     await this.pool.query(`DELETE FROM request_logs`);
+    this.insertsSinceCleanup.clear();
     this.statsCache.clear();
     this.chartCache.clear();
   }
