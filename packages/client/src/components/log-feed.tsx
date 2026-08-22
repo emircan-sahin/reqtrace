@@ -22,30 +22,38 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
   const hasMore = useLogStore((s) => s.hasMore);
   const containerRef = useRef<HTMLDivElement>(null);
   const prevItemsLengthRef = useRef(0);
-  const pendingEntries = Array.from(filteredPending.values());
-  const isEmpty = pendingEntries.length === 0 && filteredLogs.length === 0;
-
+  const prevFirstIdRef = useRef<string | null>(null);
+  const prevTotalSizeRef = useRef(0);
   const items: FeedItem[] = useMemo(() => {
     const result: FeedItem[] = filteredLogs.map((data) => ({ kind: 'log', data }));
-    for (const data of pendingEntries) {
+    for (const data of filteredPending.values()) {
       result.push({ kind: 'pending', data });
     }
     return result;
-  }, [filteredLogs, pendingEntries]);
+  }, [filteredLogs, filteredPending]);
+
+  const isEmpty = items.length === 0;
+  const lastItemId = items.length > 0 ? items[items.length - 1].data.id : null;
+  const firstItemId = items.length > 0 ? items[0].data.id : null;
 
   const virtualizer = useVirtualizer({
     count: items.length,
     getScrollElement: () => containerRef.current,
     estimateSize: () => ROW_HEIGHT,
     overscan: 20,
+    // Key by log id, not index: at a steady 200+ rows every flush shifts indices,
+    // which remounted every visible row (collapsing open detail panels and
+    // re-firing their fetches twice a second).
+    getItemKey: (index) => items[index]?.data.id ?? index,
   });
 
-  // Auto-scroll to bottom when new items are appended
+  // Auto-scroll to bottom when new items are appended. Depends on the last item's
+  // identity, not the count — the count stops changing once the list is at its cap.
   useEffect(() => {
     if (autoScroll && items.length > 0) {
       virtualizer.scrollToIndex(items.length - 1, { align: 'end' });
     }
-  }, [items.length, autoScroll, virtualizer]);
+  }, [lastItemId, items.length, autoScroll, virtualizer]);
 
   // Preserve scroll position when items are prepended (loadMore)
   useLayoutEffect(() => {
@@ -54,13 +62,21 @@ export function LogFeed({ loadMore }: { loadMore: () => void }) {
 
     const prev = prevItemsLengthRef.current;
     const curr = items.length;
-    prevItemsLengthRef.current = curr;
+    const prevFirstId = prevFirstIdRef.current;
+    const prevTotalSize = prevTotalSizeRef.current;
+    const totalSize = virtualizer.getTotalSize();
 
-    if (!autoScroll && curr > prev && prev > 0 && el.scrollTop < ROW_HEIGHT * 20) {
-      const delta = curr - prev;
-      el.scrollTop += delta * ROW_HEIGHT;
+    prevItemsLengthRef.current = curr;
+    prevFirstIdRef.current = firstItemId;
+    prevTotalSizeRef.current = totalSize;
+
+    // Only compensate for a real prepend (the first row changed identity).
+    // Appends at the bottom used to satisfy this branch too and yanked the view.
+    const prepended = prevFirstId !== null && firstItemId !== prevFirstId && curr > prev;
+    if (!autoScroll && prepended && totalSize > prevTotalSize) {
+      el.scrollTop += totalSize - prevTotalSize;
     }
-  }, [items.length, autoScroll]);
+  }, [firstItemId, items.length, autoScroll, virtualizer]);
 
   const handleScroll = useCallback(() => {
     const el = containerRef.current;

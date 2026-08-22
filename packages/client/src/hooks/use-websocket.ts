@@ -1,7 +1,9 @@
 import { useEffect } from 'react';
 import { WebSocketService } from '@/services/websocket';
 import { get } from '@/services/http';
-import { useLogStore } from '@/stores/use-log-store';
+import { useLogStore, prunePending, MAX_CLIENT_LOGS } from '@/stores/use-log-store';
+import { matchesLog, matchesPending } from '@/lib/log-filter';
+import { logPageParams } from './use-log-loader';
 import { useFilterStore } from '@/stores/use-filter-store';
 import { useConnectionStore } from '@/stores/use-connection-store';
 import type { LogSummary, RequestStart, WsMessage } from '@/types';
@@ -52,11 +54,13 @@ export function useWebSocket() {
         let nextLogs = s.logs;
         if (logs.length > 0) {
           nextLogs = [...s.logs, ...logs];
-          if (nextLogs.length > 200) {
-            nextLogs = nextLogs.slice(-200);
+          if (nextLogs.length > MAX_CLIENT_LOGS) {
+            nextLogs = nextLogs.slice(-MAX_CLIENT_LOGS);
           }
         }
-        return { logs: nextLogs, pending: nextPending };
+        // Entries whose request_end was lost (dropped buffer, reconnect gap,
+        // dead SDK) would otherwise spin in the feed forever.
+        return { logs: nextLogs, pending: prunePending(nextPending) };
       });
 
       if (projects.size > 0) {
@@ -72,15 +76,28 @@ export function useWebSocket() {
           const msg: WsMessage = JSON.parse(data);
 
           if (msg.type === 'request_start') {
+            // The project list must learn about every project, even filtered-out ones.
+            pendingProjects.add(msg.project);
+            // Filter at ingest: an unfiltered live row would otherwise push a
+            // matching row out of the bounded window and empty a filtered feed.
+            if (!matchesPending(msg, useFilterStore.getState())) return;
             pendingAdds.push(msg);
             if (pendingAdds.length > MAX_BUFFER) pendingAdds = pendingAdds.slice(-MAX_BUFFER);
-            pendingProjects.add(msg.project);
+          } else if (msg.type === 'logs_cleared') {
+            pendingAdds = [];
+            pendingRemoveIds = [];
+            pendingLogs = [];
+            useLogStore.getState().reset();
+            useFilterStore.getState().setProjects([]);
+            useConnectionStore.getState().bumpDataEpoch();
           } else if (msg.type === 'request_end') {
             pendingRemoveIds.push(msg.id);
+            if (pendingRemoveIds.length > MAX_BUFFER) pendingRemoveIds = pendingRemoveIds.slice(-MAX_BUFFER);
             const { type: _, ...log } = msg;
+            pendingProjects.add(msg.project);
+            if (!matchesLog(log, useFilterStore.getState())) return;
             pendingLogs.push(log);
             if (pendingLogs.length > MAX_BUFFER) pendingLogs = pendingLogs.slice(-MAX_BUFFER);
-            pendingProjects.add(msg.project);
           }
         } catch {
           // ignore malformed messages
@@ -98,10 +115,9 @@ export function useWebSocket() {
     const STALE_THRESHOLD = 30_000; // 30 seconds
 
     function refreshLogs() {
-      const { selectedProject, search } = useFilterStore.getState();
-      const params: Record<string, string | number> = { limit: 200 };
-      if (selectedProject) params.project = selectedProject;
-      if (search) params.search = search;
+      // Same params as the loader — this used to forget statusRange/proxy/mode
+      // and repopulate a filtered feed from an unfiltered query.
+      const params = logPageParams();
 
       get<{ logs: LogSummary[] }>('/api/logs', params)
         .then((data) => {
@@ -154,7 +170,6 @@ export function useWebSocket() {
       document.removeEventListener('visibilitychange', handleVisibility);
       unsubPause();
       if (timer) clearInterval(timer);
-      flush();
       service.dispose();
     };
   }, []);
