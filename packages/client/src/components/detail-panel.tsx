@@ -11,11 +11,21 @@ export function DetailPanel({ logId, summary }: { logId: string; summary: LogSum
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
     setLoading(true);
-    get<RequestLog>(`/api/logs/${logId}`)
-      .then(setLog)
-      .catch(() => setLog(null))
-      .finally(() => setLoading(false));
+
+    get<RequestLog>(`/api/logs/${logId}`, undefined, controller.signal)
+      .then((data) => {
+        if (!controller.signal.aborted) setLog(data);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setLog(null);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
   }, [logId]);
 
   return (

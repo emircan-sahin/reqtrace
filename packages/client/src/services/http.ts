@@ -51,3 +51,36 @@ export async function del<T>(path: string): Promise<T> {
 }
 
 export { BASE_URL };
+
+/**
+ * Opens an authenticated download. The export endpoint streams, so the token
+ * cannot ride in a header on a plain link — fetch it and hand the browser a blob.
+ */
+export async function download(path: string, params?: Record<string, string | number>): Promise<void> {
+  const url = new URL(`${BASE_URL}${path}`);
+  if (params) {
+    for (const [key, value] of Object.entries(params)) {
+      if (value !== undefined && value !== null && value !== '') {
+        url.searchParams.set(key, String(value));
+      }
+    }
+  }
+
+  const res = await fetch(url.toString(), { headers: authHeaders() });
+  handleUnauthorized(res);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+  const disposition = res.headers.get('content-disposition') ?? '';
+  const match = /filename="?([^";]+)"?/.exec(disposition);
+  const filename = match ? match[1] : 'reqtrace-export';
+
+  const blob = await res.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(objectUrl);
+}
