@@ -41,7 +41,13 @@ export interface LogFilter {
   project?: string;
   method?: string;
   status?: number;
+  /** Lower bound of a status class: 200 matches 2xx, 500 matches 5xx, etc. */
+  statusRange?: number;
   success?: boolean;
+  /** "host:port" of the proxy the request went through. */
+  proxy?: string;
+  /** Target host of the request URL, e.g. "api.stripe.com". */
+  host?: string;
   url?: string;
   search?: string;
   from?: string;
@@ -50,6 +56,16 @@ export interface LogFilter {
   offset?: number;
   cursor?: string;
 }
+
+/**
+ * Every filter dimension the dashboard offers, minus paging. Aggregate
+ * endpoints take exactly the same set as the log list so the numbers on screen
+ * always describe the rows on screen.
+ */
+export type AggregateFilter = Pick<
+  LogFilter,
+  'project' | 'method' | 'status' | 'statusRange' | 'success' | 'proxy' | 'host' | 'url' | 'search' | 'from' | 'to'
+>;
 
 export interface StatsResult {
   total_requests: number;
@@ -70,6 +86,15 @@ export interface ChartBucket {
   avg_duration: number;
 }
 
+export interface HostBucket {
+  host: string;
+  count: number;
+  success: number;
+  errors: number;
+  avg_duration: number;
+  total_size: number;
+}
+
 export interface ProxyBucket {
   proxy: string;
   project: string;
@@ -85,11 +110,14 @@ export interface LogStore {
   add(log: RequestLog): Promise<void>;
   getById(id: string): Promise<RequestLog | null>;
   list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }>;
+  /** Full rows (headers + bodies) for export; paged with the same cursor as list(). */
+  listFull(filter: LogFilter): Promise<RequestLog[]>;
   projects(): Promise<string[]>;
-  stats(filter?: { project?: string; search?: string }): Promise<StatsResult>;
-  chartStats(filter?: { project?: string; search?: string; range?: number }): Promise<ChartBucket[]>;
-  proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]>;
+  stats(filter?: AggregateFilter): Promise<StatsResult>;
+  chartStats(filter?: AggregateFilter & { range?: number }): Promise<ChartBucket[]>;
+  proxyStats(filter?: AggregateFilter): Promise<ProxyBucket[]>;
+  hostStats(filter?: AggregateFilter & { range?: number }): Promise<HostBucket[]>;
   count(): Promise<number>;
-  clear(): Promise<void>;
+  clear(filter?: { project?: string; before?: string }): Promise<number>;
   close(): Promise<void>;
 }

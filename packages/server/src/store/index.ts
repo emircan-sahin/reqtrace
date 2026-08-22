@@ -1,4 +1,46 @@
-import type { RequestLog, LogFilter, StatsResult, ChartBucket, ProxyBucket, LogStore, LogSummary } from '../types.js';
+import type { RequestLog, LogFilter, AggregateFilter, StatsResult, ChartBucket, ProxyBucket, HostBucket, LogStore, LogSummary } from '../types.js';
+
+/** Mirror of the SQL predicates in store/pg.ts, so both stores filter alike. */
+function urlHost(url: string): string {
+  const match = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/([^/?#]+)/.exec(url);
+  return match ? match[1] : url;
+}
+
+function matchesFilter(log: RequestLog, filter?: LogFilter | AggregateFilter): boolean {
+  if (!filter) return true;
+
+  if (filter.project && log.project !== filter.project) return false;
+  if (filter.method && log.method !== filter.method.toUpperCase()) return false;
+  if (filter.status !== undefined && log.status !== filter.status) return false;
+  if (filter.statusRange !== undefined) {
+    if (log.status === null) return false;
+    if (log.status < filter.statusRange || log.status >= filter.statusRange + 100) return false;
+  }
+  if (filter.success !== undefined && log.success !== filter.success) return false;
+  if (filter.proxy) {
+    const separator = filter.proxy.lastIndexOf(':');
+    const host = separator > 0 ? filter.proxy.slice(0, separator) : filter.proxy;
+    const port = separator > 0 ? Number(filter.proxy.slice(separator + 1)) : NaN;
+    if (log.proxy_host !== host) return false;
+    if (Number.isFinite(port) && log.proxy_port !== port) return false;
+  }
+  if (filter.host && urlHost(log.url) !== filter.host) return false;
+  if (filter.url && !log.url.toLowerCase().includes(filter.url.toLowerCase())) return false;
+  if (filter.search) {
+    const q = filter.search.toLowerCase();
+    const hit =
+      log.url.toLowerCase().includes(q) ||
+      log.method.toLowerCase().includes(q) ||
+      (log.status !== null && String(log.status).includes(q)) ||
+      (!!log.error_message && log.error_message.toLowerCase().includes(q)) ||
+      (!!log.proxy_host && log.proxy_host.toLowerCase().includes(q));
+    if (!hit) return false;
+  }
+  if (filter.from && log.timestamp < filter.from) return false;
+  if (filter.to && log.timestamp > filter.to) return false;
+
+  return true;
+}
 
 function toSummary(log: RequestLog): LogSummary {
   const { request_headers, response_headers, request_body, response_body, ...summary } = log;
@@ -22,41 +64,7 @@ export class InMemoryStore implements LogStore {
   }
 
   async list(filter: LogFilter): Promise<{ logs: LogSummary[]; total: number }> {
-    let result = this.logs;
-
-    if (filter.project) {
-      result = result.filter((l) => l.project === filter.project);
-    }
-    if (filter.method) {
-      const m = filter.method.toUpperCase();
-      result = result.filter((l) => l.method === m);
-    }
-    if (filter.status !== undefined) {
-      result = result.filter((l) => l.status === filter.status);
-    }
-    if (filter.success !== undefined) {
-      result = result.filter((l) => l.success === filter.success);
-    }
-    if (filter.url) {
-      const sub = filter.url.toLowerCase();
-      result = result.filter((l) => l.url.toLowerCase().includes(sub));
-    }
-    if (filter.search) {
-      const q = filter.search.toLowerCase();
-      result = result.filter((l) =>
-        l.url.toLowerCase().includes(q) ||
-        l.method.toLowerCase().includes(q) ||
-        (l.status !== null && String(l.status).includes(q)) ||
-        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
-        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
-      );
-    }
-    if (filter.from) {
-      result = result.filter((l) => l.timestamp >= filter.from!);
-    }
-    if (filter.to) {
-      result = result.filter((l) => l.timestamp <= filter.to!);
-    }
+    let result = this.logs.filter((l) => matchesFilter(l, filter));
 
     const total = result.length;
 
@@ -86,22 +94,8 @@ export class InMemoryStore implements LogStore {
     return { logs: result.map(toSummary), total };
   }
 
-  async stats(filter?: { project?: string; search?: string }): Promise<StatsResult> {
-    let logs = this.logs;
-
-    if (filter?.project) {
-      logs = logs.filter((l) => l.project === filter.project);
-    }
-    if (filter?.search) {
-      const q = filter.search.toLowerCase();
-      logs = logs.filter((l) =>
-        l.url.toLowerCase().includes(q) ||
-        l.method.toLowerCase().includes(q) ||
-        (l.status !== null && String(l.status).includes(q)) ||
-        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
-        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
-      );
-    }
+  async stats(filter?: AggregateFilter): Promise<StatsResult> {
+    const logs = this.logs.filter((l) => matchesFilter(l, filter));
 
     const total = logs.length;
 
@@ -149,25 +143,13 @@ export class InMemoryStore implements LogStore {
     };
   }
 
-  async chartStats(filter?: { project?: string; search?: string; range?: number }): Promise<ChartBucket[]> {
+  async chartStats(filter?: AggregateFilter & { range?: number }): Promise<ChartBucket[]> {
     const range = filter?.range ?? 1800;
     const bucketMs = Math.max(1, Math.floor(range / 30)) * 1000;
     const cutoff = Date.now() - range * 1000;
-    let logs = this.logs.filter((l) => new Date(l.timestamp).getTime() >= cutoff);
-
-    if (filter?.project) {
-      logs = logs.filter((l) => l.project === filter.project);
-    }
-    if (filter?.search) {
-      const q = filter.search.toLowerCase();
-      logs = logs.filter((l) =>
-        l.url.toLowerCase().includes(q) ||
-        l.method.toLowerCase().includes(q) ||
-        (l.status !== null && String(l.status).includes(q)) ||
-        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
-        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
-      );
-    }
+    const logs = this.logs.filter(
+      (l) => new Date(l.timestamp).getTime() >= cutoff && matchesFilter(l, filter),
+    );
 
     const map = new Map<string, ChartBucket>();
 
@@ -200,27 +182,13 @@ export class InMemoryStore implements LogStore {
     return [...map.values()].sort((a, b) => a.time.localeCompare(b.time));
   }
 
-  async proxyStats(filter?: { project?: string; search?: string }): Promise<ProxyBucket[]> {
-    let logs = this.logs.filter((l) => l.proxy_host !== null);
-
-    if (filter?.project) {
-      logs = logs.filter((l) => l.project === filter.project);
-    }
-    if (filter?.search) {
-      const q = filter.search.toLowerCase();
-      logs = logs.filter((l) =>
-        l.url.toLowerCase().includes(q) ||
-        l.method.toLowerCase().includes(q) ||
-        (l.status !== null && String(l.status).includes(q)) ||
-        (l.error_message && l.error_message.toLowerCase().includes(q)) ||
-        (l.proxy_host && l.proxy_host.toLowerCase().includes(q)),
-      );
-    }
+  async proxyStats(filter?: AggregateFilter): Promise<ProxyBucket[]> {
+    const logs = this.logs.filter((l) => l.proxy_host !== null && matchesFilter(l, filter));
 
     const map = new Map<string, ProxyBucket>();
 
     for (const log of logs) {
-      const proxy = `${log.proxy_host}:${log.proxy_port}`;
+      const proxy = log.proxy_port === null ? `${log.proxy_host}` : `${log.proxy_host}:${log.proxy_port}`;
       const key = `${proxy}|${log.project}`;
       const existing = map.get(key);
       const size = log.response_size_bytes ?? 0;
@@ -245,6 +213,52 @@ export class InMemoryStore implements LogStore {
     return [...map.values()].sort((a, b) => b.count - a.count);
   }
 
+  async listFull(filter: LogFilter): Promise<RequestLog[]> {
+    const page = await this.list(filter);
+    const byId = new Map(this.logs.map((l) => [l.id, l]));
+    return page.logs.map((s) => byId.get(s.id)!).filter(Boolean);
+  }
+
+  async hostStats(filter?: AggregateFilter & { range?: number }): Promise<HostBucket[]> {
+    const cutoff = filter?.range !== undefined ? Date.now() - filter.range * 1000 : null;
+    const logs = this.logs.filter(
+      (l) =>
+        matchesFilter(l, filter) &&
+        (cutoff === null || new Date(l.timestamp).getTime() >= cutoff),
+    );
+
+    const map = new Map<string, HostBucket & { durationSum: number }>();
+    for (const log of logs) {
+      const host = urlHost(log.url);
+      const existing = map.get(host);
+      if (existing) {
+        existing.count++;
+        if (log.success) existing.success++;
+        else existing.errors++;
+        existing.durationSum += log.duration_ms;
+        existing.total_size += log.response_size_bytes ?? 0;
+      } else {
+        map.set(host, {
+          host,
+          count: 1,
+          success: log.success ? 1 : 0,
+          errors: log.success ? 0 : 1,
+          avg_duration: 0,
+          durationSum: log.duration_ms,
+          total_size: log.response_size_bytes ?? 0,
+        });
+      }
+    }
+
+    return [...map.values()]
+      .map(({ durationSum, ...bucket }) => ({
+        ...bucket,
+        avg_duration: bucket.count > 0 ? Math.round(durationSum / bucket.count) : 0,
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 50);
+  }
+
   async projects(): Promise<string[]> {
     return [...new Set(this.logs.map((l) => l.project))];
   }
@@ -253,8 +267,18 @@ export class InMemoryStore implements LogStore {
     return this.logs.length;
   }
 
-  async clear(): Promise<void> {
+  async clear(filter?: { project?: string; before?: string }): Promise<number> {
+    const before = this.logs.length;
+    if (filter?.project || filter?.before) {
+      this.logs = this.logs.filter(
+        (l) =>
+          !((!filter.project || l.project === filter.project) &&
+            (!filter.before || l.timestamp < filter.before)),
+      );
+      return before - this.logs.length;
+    }
     this.logs = [];
+    return before;
   }
 
   async close(): Promise<void> {
