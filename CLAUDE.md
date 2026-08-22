@@ -51,7 +51,23 @@ pnpm test         # Run all tests
 - SDK sends via WebSocket with auto-reconnect and 100-message buffer
 - SDK authenticates with API key via WS query string
 - Server binds to 127.0.0.1 (not 0.0.0.0) to avoid dual-stack issues
-- Server uses PostgreSQL store (5K logs per project, batch cleanup every 100 inserts)
+- Server uses PostgreSQL store (1M logs per project, retention runs off the
+  insert path in bounded ctid batches every 1K inserts)
+- Clearing logs uses TRUNCATE, not DELETE — constant time at any row count
+- Four indexes on request_logs: timestamp, project+timestamp, status+timestamp,
+  and a partial one on failures. Anything less selective costs more on insert
+  than it saves on read — measure before adding a fifth
+- Filters live in ONE place per side: buildConditions() in store/pg.ts for SQL,
+  lib/log-filter.ts on the client. The log list and every aggregate take the
+  same filter set, so the stats bar can never describe a different row set than
+  the feed. Adding a filter means touching both, not just the list query
+- "pending" is a client-only mode (in-flight requests are not rows); it skips
+  the server query instead of fetching a page it would discard
+- Time-based retention via RETENTION_DAYS (0 = off), on top of the per-project cap
+- GET /api/logs/export streams NDJSON or HAR 1.2 for the active filter, paged
+  by cursor — never materialize the result set
+- SDK redaction is opt-in (redactHeaders / beforeSend in core.handleLog); the
+  default still logs every header, per the decision below
 - Server env validated with Zod (src/env.ts), defaults for PORT/HOST/DATABASE_URL/JWT_SECRET/API_KEY
 - Server auth: Fastify plugin (plugins/auth.ts) with JWT + DB token validation
 - JWT tokens stored in DB — login invalidates previous session, logout nulls token
