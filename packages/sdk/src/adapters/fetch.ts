@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { ReqtraceAdapter, RequestLog } from '../types.js';
 import { ReqtraceCore } from '../core.js';
-import { truncateBody, estimateSize, flattenHeaders } from '../utils.js';
+import { truncateBody, estimateSize, flattenHeaders, isCapturableBody, readCappedText } from '../utils.js';
 
 export class FetchAdapter implements ReqtraceAdapter {
   private core: ReqtraceCore;
@@ -12,6 +12,9 @@ export class FetchAdapter implements ReqtraceAdapter {
   }
 
   install(): void {
+    // Installing twice would store the previous wrapper as "the original":
+    // every request logged twice, and eject() could never restore real fetch.
+    if (this.originalFetch) return;
     this.originalFetch = globalThis.fetch;
     const self = this;
 
@@ -56,9 +59,6 @@ export class FetchAdapter implements ReqtraceAdapter {
 
       const endTime = Date.now();
 
-      // Clone before returning so the caller can consume the original body
-      const clonedResponse = response && config.captureBody ? response.clone() : null;
-
       // Capture lightweight metadata synchronously
       const responseStatus = response?.status ?? null;
       const responseHeaders: Record<string, string> = {};
@@ -67,11 +67,17 @@ export class FetchAdapter implements ReqtraceAdapter {
           responseHeaders[key] = value;
         });
       }
+
+      // Clone before returning so the caller can consume the original body
+      const clonedResponse =
+        response && config.captureBody && isCapturableBody(responseHeaders, config.maxBodySize)
+          ? response.clone()
+          : null;
       const responseSuccess = response !== null && response.status >= 200 && response.status < 400;
       const errorMessage = error?.message ?? null;
 
       // Defer all heavy processing to avoid blocking the caller
-      setImmediate(async () => {
+      const buildAndSendLog = async (): Promise<void> => {
         const duration_ms = endTime - start;
         const requestHeaders = flattenHeaders(init?.headers);
 
@@ -85,7 +91,7 @@ export class FetchAdapter implements ReqtraceAdapter {
         let responseBody: string | undefined;
         if (clonedResponse) {
           try {
-            const text = await clonedResponse.text();
+            const text = await readCappedText(clonedResponse, config.maxBodySize);
             responseBody = truncateBody(text, config.maxBodySize);
             if (responseSize === null) {
               responseSize = estimateSize(text);
@@ -115,6 +121,12 @@ export class FetchAdapter implements ReqtraceAdapter {
         };
 
         self.core.handleLog(log);
+      };
+
+      // Deferred so the caller is not blocked. The catch matters: an unhandled
+      // rejection here would crash the host application.
+      setImmediate(() => {
+        void buildAndSendLog().catch(() => {});
       });
 
       if (error) throw error;

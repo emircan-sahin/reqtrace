@@ -23,6 +23,8 @@ export class CycleTlsAdapter implements ReqtraceAdapter {
   }
 
   install(): void {
+    if (this.originals.size > 0) return;
+
     for (const method of HTTP_METHODS) {
       const original = this.client[method] as CycleTlsMethod;
       this.originals.set(method, original);
@@ -70,15 +72,18 @@ export class CycleTlsAdapter implements ReqtraceAdapter {
         const errorMessage = error?.message ?? null;
         const { host: proxyHost, port: proxyPort } = this.extractProxy(options?.proxy);
 
-        // Normalize response data to string
         const rawData = response?.data;
-        const dataStr = rawData == null
-          ? ''
-          : typeof rawData === 'string'
-            ? rawData
-            : JSON.stringify(rawData);
 
         setImmediate(() => {
+         try {
+          // Normalized here, not on the caller's await path: for large payloads
+          // this JSON.stringify used to run even when captureBody was off.
+          const dataStr = rawData == null
+            ? ''
+            : typeof rawData === 'string'
+              ? rawData
+              : JSON.stringify(rawData);
+
           const duration_ms = endTime - start;
           const requestHeaders = flattenHeaders(options?.headers);
 
@@ -119,6 +124,10 @@ export class CycleTlsAdapter implements ReqtraceAdapter {
           };
 
           this.core.handleLog(log);
+         } catch {
+          // A throw in a setImmediate callback has no caller frame — it would
+          // crash the host application.
+         }
         });
 
         if (error) throw error;

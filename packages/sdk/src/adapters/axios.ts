@@ -29,10 +29,15 @@ export class AxiosAdapter implements ReqtraceAdapter {
   }
 
   install(): void {
-    const config = this.core.getConfig();
+    // Installing twice leaks the first pair of interceptors (their ids are
+    // overwritten) and logs every request twice.
+    if (this.requestInterceptorId !== null || this.responseInterceptorId !== null) return;
 
     this.requestInterceptorId = this.axiosInstance.interceptors.request.use(
       (reqConfig: InternalAxiosRequestConfig) => {
+       try {
+        // Re-read on every request: a config change must take effect immediately.
+        const config = this.core.getConfig();
         const url = reqConfig.url ?? '';
         const method = (reqConfig.method ?? 'GET').toUpperCase();
 
@@ -58,19 +63,23 @@ export class AxiosAdapter implements ReqtraceAdapter {
         }
 
         return reqConfig;
+       } catch {
+        // Never let monitoring fail the caller's HTTP request.
+        return reqConfig;
+       }
       },
     );
 
     this.responseInterceptorId = this.axiosInstance.interceptors.response.use(
       (response: AxiosResponse) => {
         const endTime = Date.now();
-        setImmediate(() => this.buildAndSendLog(response.config, response, undefined, endTime));
+        setImmediate(() => this.safeBuildAndSendLog(response.config, response, undefined, endTime));
         return response;
       },
       (error: AxiosError) => {
         if (error.config) {
           const endTime = Date.now();
-          setImmediate(() => this.buildAndSendLog(
+          setImmediate(() => this.safeBuildAndSendLog(
             error.config as InternalAxiosRequestConfig,
             error.response ?? null,
             error,
@@ -90,6 +99,20 @@ export class AxiosAdapter implements ReqtraceAdapter {
     if (this.responseInterceptorId !== null) {
       this.axiosInstance.interceptors.response.eject(this.responseInterceptorId);
       this.responseInterceptorId = null;
+    }
+  }
+
+  /** setImmediate callbacks have no caller frame — a throw here is fatal. */
+  private safeBuildAndSendLog(
+    reqConfig: InternalAxiosRequestConfig,
+    response: AxiosResponse | null,
+    error?: AxiosError,
+    endTime?: number,
+  ): void {
+    try {
+      this.buildAndSendLog(reqConfig, response, error, endTime);
+    } catch {
+      // swallow
     }
   }
 
