@@ -1,5 +1,6 @@
 import type { ReqtraceConfig, ResolvedConfig, RequestLog, RequestStart, LogHandler, StartHandler } from './types.js';
 import { createWsTransport, type WsTransport } from './transport.js';
+import { DEFAULT_REDACTED_HEADERS, redactHeaderMap } from './utils.js';
 
 const DEFAULT_CONFIG: ResolvedConfig = {
   enabled: true,
@@ -8,6 +9,8 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   captureBody: true,
   maxBodySize: 51200,
   filter: () => true,
+  redactHeaders: false,
+  beforeSend: null,
 };
 
 export class ReqtraceCore {
@@ -38,7 +41,37 @@ export class ReqtraceCore {
 
   handleLog(log: RequestLog): void {
     if (!this.config.enabled) return;
-    this.logHandler(log);
+
+    const prepared = this.prepare(log);
+    if (prepared) this.logHandler(prepared);
+  }
+
+  /** Single chokepoint every adapter goes through: redact, then hand to beforeSend. */
+  private prepare(log: RequestLog): RequestLog | null {
+    const { redactHeaders, beforeSend } = this.config;
+    let result = log;
+
+    if (redactHeaders) {
+      const names = redactHeaders === true
+        ? DEFAULT_REDACTED_HEADERS
+        : redactHeaders.map((n) => n.toLowerCase());
+      result = {
+        ...result,
+        request_headers: redactHeaderMap(result.request_headers, names) ?? {},
+        response_headers: redactHeaderMap(result.response_headers, names) ?? {},
+      };
+    }
+
+    if (beforeSend) {
+      try {
+        return beforeSend(result);
+      } catch {
+        // A throwing hook must not lose the log or break the caller.
+        return result;
+      }
+    }
+
+    return result;
   }
 
   shouldLog(url: string, method: string): boolean {
@@ -58,5 +91,7 @@ export class ReqtraceCore {
     this.transport?.close();
     this.transport = null;
     this.startHandler = null;
+    // Otherwise the closure keeps feeding the closed transport (and keeps it alive).
+    this.logHandler = () => {};
   }
 }

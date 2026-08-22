@@ -75,6 +75,45 @@ const res = await fetch('https://api.example.com/users')
 | `maxBodySize` | `number` | `51200` | Max body size in bytes |
 | `enabled` | `boolean` | `true` | Enable/disable logging |
 | `filter` | `function` | `() => true` | Skip specific requests |
+| `redactHeaders` | `string[] \| boolean` | `false` | Mask header values before they leave the process |
+| `beforeSend` | `function` | — | Rewrite a log, or return `null` to drop it |
+
+### Redacting credentials
+
+Every header is logged by default — the server is yours and so is the data. When
+the process handles credentials you would rather not persist (proxy
+subscriptions, third-party tokens), turn redaction on:
+
+```ts
+const core = new ReqtraceCore({
+  serverUrl: 'http://localhost:3100',
+  apiKey: process.env.API_KEY,
+  // true masks authorization, proxy-authorization, cookie, set-cookie, x-api-key
+  redactHeaders: true,
+  // or name your own: redactHeaders: ['x-internal-token']
+})
+```
+
+`beforeSend` is the escape hatch for anything redaction cannot express:
+
+```ts
+const core = new ReqtraceCore({
+  serverUrl: 'http://localhost:3100',
+  beforeSend: (log) => {
+    if (log.url.includes('/internal/')) return null   // never log these
+    return { ...log, request_body: undefined }        // keep the row, drop the body
+  },
+})
+```
+
+### Response bodies that are not captured
+
+`captureBody` skips bodies that would cost more to keep than they are worth: a
+`content-length` far above `maxBodySize`, and streaming or binary content types
+(`text/event-stream`, `application/octet-stream`, `video/*`, `audio/*`,
+`image/*`). The request is still logged in full — only the response body is
+omitted. Without this a large download, or an SSE stream that never ends, would
+be buffered whole in memory just to keep the first 50KB.
 
 ## Cleanup
 

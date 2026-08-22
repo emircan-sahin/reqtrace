@@ -121,4 +121,79 @@ describe('ReqtraceCore', () => {
       expect(config1).toEqual(config2);
     });
   });
+
+  describe('redactHeaders', () => {
+    const sampleLog = (): RequestLog => ({
+      id: 'r1',
+      project: 'p',
+      url: 'https://api.test/x',
+      method: 'GET',
+      status: 200,
+      duration_ms: 3,
+      proxy_host: '10.0.0.1',
+      proxy_port: 8080,
+      response_size_bytes: 10,
+      request_headers: { Authorization: 'Bearer secret', 'Proxy-Authorization': 'Basic creds', accept: 'json' },
+      response_headers: { 'set-cookie': 'session=abc', 'content-type': 'application/json' },
+      error_message: null,
+      success: true,
+      timestamp: new Date().toISOString(),
+    });
+
+    it('leaves headers untouched by default', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({}, (l) => logs.push(l));
+      core.handleLog(sampleLog());
+      expect(logs[0].request_headers.Authorization).toBe('Bearer secret');
+    });
+
+    it('masks credential headers when enabled', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ redactHeaders: true }, (l) => logs.push(l));
+      core.handleLog(sampleLog());
+
+      expect(logs[0].request_headers.Authorization).toBe('[redacted]');
+      expect(logs[0].request_headers['Proxy-Authorization']).toBe('[redacted]');
+      expect(logs[0].request_headers.accept).toBe('json');
+      expect(logs[0].response_headers['set-cookie']).toBe('[redacted]');
+      expect(logs[0].response_headers['content-type']).toBe('application/json');
+    });
+
+    it('masks a custom header list, case-insensitively', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ redactHeaders: ['X-Secret'] }, (l) => logs.push(l));
+      const log = sampleLog();
+      log.request_headers['x-secret'] = 'nope';
+      core.handleLog(log);
+
+      expect(logs[0].request_headers['x-secret']).toBe('[redacted]');
+      expect(logs[0].request_headers.Authorization).toBe('Bearer secret');
+    });
+  });
+
+  describe('beforeSend', () => {
+    it('drops the log when the hook returns null', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ beforeSend: () => null }, (l) => logs.push(l));
+      core.handleLog({
+        id: 'r1', project: 'p', url: 'https://api.test/x', method: 'GET', status: 200,
+        duration_ms: 1, proxy_host: null, proxy_port: null, response_size_bytes: 1,
+        request_headers: {}, response_headers: {}, error_message: null, success: true,
+        timestamp: new Date().toISOString(),
+      });
+      expect(logs).toHaveLength(0);
+    });
+
+    it('keeps the log when the hook throws', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ beforeSend: () => { throw new Error('boom'); } }, (l) => logs.push(l));
+      core.handleLog({
+        id: 'r2', project: 'p', url: 'https://api.test/x', method: 'GET', status: 200,
+        duration_ms: 1, proxy_host: null, proxy_port: null, response_size_bytes: 1,
+        request_headers: {}, response_headers: {}, error_message: null, success: true,
+        timestamp: new Date().toISOString(),
+      });
+      expect(logs).toHaveLength(1);
+    });
+  });
 });

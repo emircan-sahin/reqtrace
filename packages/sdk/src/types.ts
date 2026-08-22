@@ -7,12 +7,21 @@ export interface ReqtraceConfig {
   apiKey?: string;
   /** Project name for filtering in the dashboard (default: 'default') */
   projectName?: string;
-  /** Capture request/response bodies up to maxBodySize (default: false) */
+  /** Capture request/response bodies up to maxBodySize (default: true) */
   captureBody?: boolean;
   /** Maximum body size in bytes to capture (default: 51200 = 50KB) */
   maxBodySize?: number;
   /** Return false to skip logging a request */
   filter?: (url: string, method: string) => boolean;
+  /**
+   * Header names to mask before a log leaves the process. Pass `true` for the
+   * built-in credential list (authorization, cookie, set-cookie,
+   * proxy-authorization, x-api-key). Default: no redaction — the dashboard is
+   * self-hosted and the developer owns the data.
+   */
+  redactHeaders?: string[] | boolean;
+  /** Last chance to rewrite or drop a log. Return null to discard it. */
+  beforeSend?: (log: RequestLog) => RequestLog | null;
 }
 
 export interface ResolvedConfig {
@@ -22,6 +31,8 @@ export interface ResolvedConfig {
   captureBody: boolean;
   maxBodySize: number;
   filter: (url: string, method: string) => boolean;
+  redactHeaders: string[] | boolean;
+  beforeSend: ((log: RequestLog) => RequestLog | null) | null;
 }
 
 export interface RequestStart {
