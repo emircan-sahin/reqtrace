@@ -1,6 +1,7 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useLogStore } from '@/stores/use-log-store';
 import { useFilterStore } from '@/stores/use-filter-store';
+import { matchesLog, matchesPending, type ClientFilters } from '@/lib/log-filter';
 import type { LogSummary, RequestStart } from '@/types';
 
 export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending: Map<string, RequestStart> } {
@@ -9,78 +10,32 @@ export function useFilteredLogs(): { filteredLogs: LogSummary[]; filteredPending
   const selectedProject = useFilterStore((s) => s.selectedProject);
   const search = useFilterStore((s) => s.search);
   const selectedProxy = useFilterStore((s) => s.selectedProxy);
+  const selectedHost = useFilterStore((s) => s.selectedHost);
   const statusRange = useFilterStore((s) => s.statusRange);
   const mode = useFilterStore((s) => s.mode);
 
-  const matchesSearch = useCallback((text: string) => {
-    if (!search) return true;
-    return text.toLowerCase().includes(search.toLowerCase());
-  }, [search]);
+  const filters: ClientFilters = useMemo(
+    () => ({ selectedProject, search, selectedProxy, selectedHost, statusRange, mode }),
+    [selectedProject, search, selectedProxy, selectedHost, statusRange, mode],
+  );
 
-  const matchesStatusRange = useCallback((status: number | null): boolean => {
-    if (statusRange === 'all') return true;
-    if (status === null) return false;
-    const range = statusRange.replace('xx', '00');
-    const start = parseInt(range);
-    const end = start + 99;
-    return status >= start && status <= end;
-  }, [statusRange]);
+  const hasFilters =
+    !!selectedProject || !!search || !!selectedProxy || !!selectedHost ||
+    statusRange !== 'all' || mode !== 'all';
 
-  const matchesMode = useCallback((log: LogSummary): boolean => {
-    if (mode === 'all') return true;
-    if (mode === 'pending') return false;
-    if (mode === 'success') return log.success;
-    if (mode === 'error') return !log.success;
-    return true;
-  }, [mode]);
-
-  const filteredLogs = useMemo(() => {
-    let result = logs;
-    if (selectedProject) {
-      result = result.filter((l) => l.project === selectedProject);
-    }
-    if (search) {
-      result = result.filter((l) =>
-        matchesSearch(l.url) ||
-        matchesSearch(l.method) ||
-        (l.status !== null && String(l.status).includes(search)) ||
-        (l.error_message && matchesSearch(l.error_message)) ||
-        (l.proxy_host && matchesSearch(l.proxy_host)),
-      );
-    }
-    if (selectedProxy) {
-      result = result.filter((l) => {
-        if (!l.proxy_host) return false;
-        const proxyString = l.proxy_port ? `${l.proxy_host}:${l.proxy_port}` : l.proxy_host;
-        return proxyString === selectedProxy;
-      });
-    }
-    if (statusRange !== 'all') {
-      result = result.filter((l) => matchesStatusRange(l.status));
-    }
-    if (mode !== 'all') {
-      result = result.filter((l) => matchesMode(l));
-    }
-    return result;
-  }, [logs, selectedProject, search, selectedProxy, statusRange, mode, matchesSearch, matchesStatusRange, matchesMode]);
+  const filteredLogs = useMemo(
+    () => (hasFilters ? logs.filter((l) => matchesLog(l, filters)) : logs),
+    [logs, filters, hasFilters],
+  );
 
   const filteredPending = useMemo(() => {
-    const hasFilters = selectedProject || search || selectedProxy || statusRange !== 'all' || mode !== 'all';
     if (!hasFilters) return pending;
-
-    // pending entries have no status or proxy — these filters remove all pending
-    if (selectedProxy || statusRange !== 'all' || mode === 'success' || mode === 'error') {
-      return new Map<string, RequestStart>();
+    const result = new Map<string, RequestStart>();
+    for (const [id, entry] of pending) {
+      if (matchesPending(entry, filters)) result.set(id, entry);
     }
-
-    const filtered = new Map(pending);
-    for (const [id, entry] of filtered) {
-      const projectMatch = !selectedProject || entry.project === selectedProject;
-      const searchMatch = !search || matchesSearch(entry.url) || matchesSearch(entry.method);
-      if (!projectMatch || !searchMatch) filtered.delete(id);
-    }
-    return filtered;
-  }, [pending, selectedProject, search, selectedProxy, statusRange, mode, matchesSearch]);
+    return result;
+  }, [pending, filters, hasFilters]);
 
   return { filteredLogs, filteredPending };
 }

@@ -1,7 +1,7 @@
-import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
-import { get } from '@/services/http';
-import { useFilterStore } from '@/stores/use-filter-store';
+import { useMemo } from 'react';
 import { useConnectionStore } from '@/stores/use-connection-store';
+import { useServerFilters } from './use-server-filters';
+import { usePolledGet } from './use-polled-get';
 import type { LogSummary } from '@/types';
 
 const REFETCH_INTERVAL = 10_000;
@@ -104,44 +104,28 @@ function buildChartDatasets(bucketMap: Map<string, ChartBucket>, rangeSec: numbe
 }
 
 export function useChartData(filteredLogs: LogSummary[]) {
-  const selectedProject = useFilterStore((s) => s.selectedProject);
-  const search = useFilterStore((s) => s.search);
   const chartRange = useConnectionStore((s) => s.chartRange);
-  const [serverBuckets, setServerBuckets] = useState<ChartBucket[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const { params: filterParams, pendingOnly } = useServerFilters();
 
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const params = useMemo(
+    () => ({ ...filterParams, range: chartRange }),
+    [filterParams, chartRange],
+  );
 
-  const fetchCharts = useCallback(() => {
-    const params: Record<string, string | number> = { range: chartRange };
-    if (selectedProject) params.project = selectedProject;
-    if (search) params.search = search;
-    const fetchTime = new Date().toISOString();
-
-    get<{ buckets: ChartBucket[] }>('/api/stats/charts', params)
-      .then((data) => {
-        setServerBuckets(data.buckets);
-        setFetchedAt(fetchTime);
-      })
-      .catch(() => {});
-  }, [selectedProject, search, chartRange]);
-
-  useEffect(() => {
-    setFetchedAt(null);
-    fetchCharts();
-
-    timerRef.current = setInterval(fetchCharts, REFETCH_INTERVAL);
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [fetchCharts]);
+  const { data, fetchedAt } = usePolledGet<{ buckets: ChartBucket[] }>(
+    '/api/stats/charts',
+    params,
+    REFETCH_INTERVAL,
+    !pendingOnly,
+  );
+  const serverBuckets = data?.buckets;
 
   return useMemo(() => {
     const bucketSec = Math.max(1, Math.floor(chartRange / BAR_COUNT));
     const intervalMs = bucketSec * 1000;
     const bucketMap = new Map<string, ChartBucket>();
 
-    for (const b of serverBuckets) {
+    for (const b of serverBuckets ?? []) {
       bucketMap.set(`${b.time}|${b.project}`, { ...b });
     }
 

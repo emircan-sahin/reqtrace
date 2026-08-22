@@ -8,6 +8,9 @@ interface ConnectionState {
   hoverPaused: boolean;
   manualPaused: boolean;
   stale: boolean;
+  /** Bumped whenever server-side data is wiped, to force every fetch to re-run. */
+  dataEpoch: number;
+  bumpDataEpoch: () => void;
   setConnected: (v: boolean) => void;
   setAutoScroll: (v: boolean) => void;
   toggleAutoScroll: () => void;
@@ -26,7 +29,9 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
   hoverPaused: false,
   manualPaused: false,
   stale: false,
+  dataEpoch: 0,
 
+  bumpDataEpoch: () => set((s) => ({ dataEpoch: s.dataEpoch + 1 })),
   setConnected: (connected) => set({ connected }),
   setAutoScroll: (autoScroll) => set({ autoScroll }),
   toggleAutoScroll: () => set((s) => ({ autoScroll: !s.autoScroll })),

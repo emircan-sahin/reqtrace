@@ -14,12 +14,15 @@ export function FilterBar() {
   const mode = useFilterStore((s) => s.mode);
   const statusRange = useFilterStore((s) => s.statusRange);
   const selectedProxy = useFilterStore((s) => s.selectedProxy);
+  const selectedHost = useFilterStore((s) => s.selectedHost);
   const setMode = useFilterStore((s) => s.setMode);
   const setStatusRange = useFilterStore((s) => s.setStatusRange);
   const setSelectedProxy = useFilterStore((s) => s.setSelectedProxy);
+  const setSelectedHost = useFilterStore((s) => s.setSelectedHost);
   const clearFilters = useFilterStore((s) => s.clearFilters);
 
-  const hasActiveFilters = mode !== 'all' || statusRange !== 'all' || selectedProxy !== null;
+  const hasActiveFilters =
+    mode !== 'all' || statusRange !== 'all' || selectedProxy !== null || selectedHost !== null;
 
   return (
     <div className="flex items-center gap-2">
@@ -65,6 +68,23 @@ export function FilterBar() {
             size="icon-xs"
             onClick={() => setSelectedProxy(null)}
             className="h-4 w-4 text-purple-400/60 hover:text-purple-400 hover:bg-purple-500/10"
+          >
+            <X size={12} />
+          </Button>
+        </Badge>
+      )}
+
+      {selectedHost && (
+        <Badge
+          variant="outline"
+          className="gap-1 h-7 pl-2 pr-1 text-xs font-mono text-cyan-400 border-cyan-500/30"
+        >
+          {selectedHost}
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setSelectedHost(null)}
+            className="h-4 w-4 text-cyan-400/60 hover:text-cyan-400 hover:bg-cyan-500/10"
           >
             <X size={12} />
           </Button>

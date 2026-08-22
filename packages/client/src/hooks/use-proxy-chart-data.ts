@@ -1,7 +1,11 @@
-import { useMemo, useState, useEffect } from 'react';
-import { get } from '@/services/http';
-import { useFilterStore } from '@/stores/use-filter-store';
+import { useMemo } from 'react';
+import { useConnectionStore } from '@/stores/use-connection-store';
+import { useServerFilters } from './use-server-filters';
+import { usePolledGet } from './use-polled-get';
+import { proxyLabel } from '@/lib/log-filter';
 import type { LogSummary } from '@/types';
+
+const REFETCH_INTERVAL = 10_000;
 
 interface ProxyBucket {
   proxy: string;
@@ -97,31 +101,28 @@ function buildProxyDatasets(bucketMap: Map<string, ProxyBucket>) {
 }
 
 export function useProxyChartData(filteredLogs: LogSummary[]) {
-  const selectedProject = useFilterStore((s) => s.selectedProject);
-  const search = useFilterStore((s) => s.search);
-  const [serverBuckets, setServerBuckets] = useState<ProxyBucket[]>([]);
-  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const chartRange = useConnectionStore((s) => s.chartRange);
+  const { params: filterParams, pendingOnly } = useServerFilters();
 
-  useEffect(() => {
-    setFetchedAt(null);
-    const params: Record<string, string | number> = {};
-    if (selectedProject) params.project = selectedProject;
-    if (search) params.search = search;
+  // The proxy charts live in the charts panel, so they follow the same range
+  // picker — and bounding them by time keeps the aggregate off the whole table.
+  const params = useMemo(
+    () => ({ ...filterParams, range: chartRange }),
+    [filterParams, chartRange],
+  );
 
-    const fetchTime = new Date().toISOString();
-
-    get<{ buckets: ProxyBucket[] }>('/api/stats/proxy', params)
-      .then((data) => {
-        setServerBuckets(data.buckets);
-        setFetchedAt(fetchTime);
-      })
-      .catch(() => {});
-  }, [selectedProject, search]);
+  const { data, fetchedAt } = usePolledGet<{ buckets: ProxyBucket[] }>(
+    '/api/stats/proxy',
+    params,
+    REFETCH_INTERVAL,
+    !pendingOnly,
+  );
+  const serverBuckets = data?.buckets;
 
   return useMemo(() => {
     const bucketMap = new Map<string, ProxyBucket>();
 
-    for (const b of serverBuckets) {
+    for (const b of serverBuckets ?? []) {
       bucketMap.set(`${b.proxy}|${b.project}`, { ...b });
     }
 
@@ -129,7 +130,8 @@ export function useProxyChartData(filteredLogs: LogSummary[]) {
       for (const log of filteredLogs) {
         if (log.timestamp <= fetchedAt || !log.proxy_host) continue;
 
-        const proxy = `${log.proxy_host}:${log.proxy_port}`;
+        const proxy = proxyLabel(log.proxy_host, log.proxy_port);
+        if (!proxy) continue;
         const key = `${proxy}|${log.project}`;
         const size = log.response_size_bytes ?? 0;
         const existing = bucketMap.get(key);

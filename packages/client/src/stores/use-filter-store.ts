@@ -8,6 +8,7 @@ interface FilterState {
   search: string;
   projects: string[];
   selectedProxy: string | null;
+  selectedHost: string | null;
   statusRange: StatusRange;
   mode: ModeFilter;
   setSelectedProject: (project: string | null) => void;
@@ -15,6 +16,7 @@ interface FilterState {
   setProjects: (projects: string[]) => void;
   addProject: (project: string) => void;
   setSelectedProxy: (proxy: string | null) => void;
+  setSelectedHost: (host: string | null) => void;
   setStatusRange: (range: StatusRange) => void;
   setMode: (mode: ModeFilter) => void;
   clearFilters: () => void;
@@ -25,6 +27,7 @@ export const useFilterStore = create<FilterState>((set) => ({
   search: '',
   projects: [],
   selectedProxy: null,
+  selectedHost: null,
   statusRange: 'all',
   mode: 'all',
 
@@ -36,7 +39,8 @@ export const useFilterStore = create<FilterState>((set) => ({
     return { projects: [...s.projects, project].sort() };
   }),
   setSelectedProxy: (selectedProxy) => set({ selectedProxy }),
+  setSelectedHost: (selectedHost) => set({ selectedHost }),
   setStatusRange: (statusRange) => set({ statusRange }),
   setMode: (mode) => set({ mode }),
-  clearFilters: () => set({ selectedProxy: null, statusRange: 'all', mode: 'all' }),
+  clearFilters: () => set({ selectedProxy: null, selectedHost: null, statusRange: 'all', mode: 'all' }),
 }));

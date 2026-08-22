@@ -33,7 +33,11 @@ export interface RequestEnd extends LogSummary {
   type: 'request_end';
 }
 
-export type WsMessage = RequestStart | RequestEnd;
+export interface LogsCleared {
+  type: 'logs_cleared';
+}
+
+export type WsMessage = RequestStart | RequestEnd | LogsCleared;
 
 export interface Stats {
   total_requests: number;

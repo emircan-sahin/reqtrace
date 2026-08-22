@@ -6,6 +6,7 @@ import { StatusBadge } from './status-badge';
 import { MethodBadge } from './method-badge';
 import { ProtocolBadge } from './protocol-badge';
 import { ProxyBadge } from './proxy-badge';
+import { proxyLabel } from '@/lib/log-filter';
 import { DetailPanel } from './detail-panel';
 import { useFilterStore } from '@/stores/use-filter-store';
 
@@ -67,7 +68,7 @@ export function CompletedEntry({ log }: { log: LogSummary }) {
           <ProxyBadge
             host={log.proxy_host!}
             port={log.proxy_port}
-            onClick={() => setSelectedProxy(log.proxy_port ? `${log.proxy_host}:${log.proxy_port}` : log.proxy_host!)}
+            onClick={() => setSelectedProxy(proxyLabel(log.proxy_host, log.proxy_port))}
           />
         )}
         <span className="flex-1" />

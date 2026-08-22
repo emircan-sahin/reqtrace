@@ -1,8 +1,10 @@
-import { useMemo, useState, useEffect } from 'react';
-import { get } from '@/services/http';
+import { useMemo } from 'react';
 import { useFilteredLogs } from './use-filtered-logs';
-import { useFilterStore } from '@/stores/use-filter-store';
+import { useServerFilters } from './use-server-filters';
+import { usePolledGet } from './use-polled-get';
 import type { Stats } from '@/types';
+
+const REFETCH_INTERVAL = 10_000;
 
 const EMPTY_STATS: Stats = {
   total_requests: 0,
@@ -15,42 +17,34 @@ const EMPTY_STATS: Stats = {
 };
 
 export function useStats(): Stats {
-  const { filteredLogs } = useFilteredLogs();
-  const selectedProject = useFilterStore((s) => s.selectedProject);
-  const search = useFilterStore((s) => s.search);
-  const [serverStats, setServerStats] = useState<Stats | null>(null);
-  const [fetchedAt, setFetchedAt] = useState<string | null>(null);
+  const { filteredLogs, filteredPending } = useFilteredLogs();
+  // Same filters the feed uses, so these numbers describe the rows on screen.
+  const { params, pendingOnly } = useServerFilters();
 
-  useEffect(() => {
-    setFetchedAt(null);
-    const params: Record<string, string | number> = {};
-    if (selectedProject) params.project = selectedProject;
-    if (search) params.search = search;
-
-    const fetchTime = new Date().toISOString();
-
-    get<Stats>('/api/stats', params)
-      .then((data) => {
-        setServerStats(data);
-        setFetchedAt(fetchTime);
-      })
-      .catch(() => {});
-  }, [selectedProject, search]);
+  // Polled, not fetched once: the live delta below is derived from a sliding
+  // window of at most MAX_CLIENT_LOGS rows, so without refresh the totals drift.
+  const { data: serverStats, fetchedAt } = usePolledGet<Stats>(
+    '/api/stats',
+    params,
+    REFETCH_INTERVAL,
+    !pendingOnly,
+  );
+  const pendingCount = filteredPending.size;
 
   return useMemo(() => {
+    // Pending mode has no server-side rows at all — report what is in flight.
+    if (pendingOnly) return { ...EMPTY_STATS, total_requests: pendingCount };
     if (!serverStats || !fetchedAt) return EMPTY_STATS;
 
-    // Count logs from the last minute — iterate backwards since logs are
-    // in chronological order, so we can stop early (O(k) instead of O(n))
+    // Server-side count over the whole dataset, plus rows that arrived since.
+    // Deriving it from the client window alone saturates at the window size.
     const cutoff = new Date(Date.now() - 60_000).toISOString();
-    let recentCount = 0;
+    let recentSinceFetch = 0;
     for (let i = filteredLogs.length - 1; i >= 0; i--) {
-      if (filteredLogs[i].timestamp >= cutoff) {
-        recentCount++;
-      } else {
-        break;
-      }
+      const ts = filteredLogs[i].timestamp;
+      if (ts > fetchedAt && ts >= cutoff) recentSinceFetch++;
     }
+    const recentCount = serverStats.requests_per_minute + recentSinceFetch;
 
     // Only merge logs that arrived via WS after we fetched stats
     const newLogs = filteredLogs.filter((l) => l.timestamp > fetchedAt);
@@ -86,5 +80,5 @@ export function useStats(): Stats {
       status_codes: statusCodes,
       requests_per_minute: recentCount,
     };
-  }, [serverStats, fetchedAt, filteredLogs]);
+  }, [serverStats, fetchedAt, filteredLogs, pendingOnly, pendingCount]);
 }
