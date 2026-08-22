@@ -147,26 +147,58 @@ describe('ReqtraceCore', () => {
       expect(logs[0].request_headers.Authorization).toBe('Bearer secret');
     });
 
-    it('masks credential headers when enabled', () => {
+    it('masks anything that looks like a credential', () => {
       const logs: RequestLog[] = [];
       const core = new ReqtraceCore({ redactHeaders: true }, (l) => logs.push(l));
-      core.handleLog(sampleLog());
+      const log = sampleLog();
+      // Real-world names a fixed list would miss: no dash, vendor prefixes.
+      log.request_headers['x-apikey'] = 'okx-key';
+      log.request_headers['x-fptoken'] = 'fp';
+      log.request_headers['Ok-Verify-Sign'] = 'sig';
+      core.handleLog(log);
 
       expect(logs[0].request_headers.Authorization).toBe('[redacted]');
       expect(logs[0].request_headers['Proxy-Authorization']).toBe('[redacted]');
-      expect(logs[0].request_headers.accept).toBe('json');
+      expect(logs[0].request_headers['x-apikey']).toBe('[redacted]');
+      expect(logs[0].request_headers['x-fptoken']).toBe('[redacted]');
+      expect(logs[0].request_headers['Ok-Verify-Sign']).toBe('[redacted]');
       expect(logs[0].response_headers['set-cookie']).toBe('[redacted]');
+    });
+
+    it('leaves ordinary headers readable', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ redactHeaders: true }, (l) => logs.push(l));
+      const log = sampleLog();
+      log.request_headers['user-agent'] = 'axios/1.7.2';
+      log.request_headers['accept-encoding'] = 'gzip';
+      core.handleLog(log);
+
+      expect(logs[0].request_headers.accept).toBe('json');
+      expect(logs[0].request_headers['user-agent']).toBe('axios/1.7.2');
+      expect(logs[0].request_headers['accept-encoding']).toBe('gzip');
       expect(logs[0].response_headers['content-type']).toBe('application/json');
     });
 
-    it('masks a custom header list, case-insensitively', () => {
+    it('extends the built-in detection instead of replacing it', () => {
       const logs: RequestLog[] = [];
-      const core = new ReqtraceCore({ redactHeaders: ['X-Secret'] }, (l) => logs.push(l));
+      const core = new ReqtraceCore({ redactHeaders: ['X-Tenant'] }, (l) => logs.push(l));
       const log = sampleLog();
-      log.request_headers['x-secret'] = 'nope';
+      log.request_headers['x-tenant'] = 'acme';
       core.handleLog(log);
 
-      expect(logs[0].request_headers['x-secret']).toBe('[redacted]');
+      expect(logs[0].request_headers['x-tenant']).toBe('[redacted]');
+      // Naming one extra header must not silently un-redact the credentials.
+      expect(logs[0].request_headers.Authorization).toBe('[redacted]');
+    });
+
+    it('masks only the named headers when given { only }', () => {
+      const logs: RequestLog[] = [];
+      const core = new ReqtraceCore({ redactHeaders: { only: ['X-Tenant'] } }, (l) => logs.push(l));
+      const log = sampleLog();
+      log.request_headers['x-tenant'] = 'acme';
+      core.handleLog(log);
+
+      expect(logs[0].request_headers['x-tenant']).toBe('[redacted]');
       expect(logs[0].request_headers.Authorization).toBe('Bearer secret');
     });
   });

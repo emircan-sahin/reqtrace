@@ -14,12 +14,16 @@ export interface ReqtraceConfig {
   /** Return false to skip logging a request */
   filter?: (url: string, method: string) => boolean;
   /**
-   * Header names to mask before a log leaves the process. Pass `true` for the
-   * built-in credential list (authorization, cookie, set-cookie,
-   * proxy-authorization, x-api-key). Default: no redaction — the dashboard is
-   * self-hosted and the developer owns the data.
+   * Mask header values before a log leaves the process. Default: no redaction —
+   * the dashboard is self-hosted and the developer owns the data.
+   *
+   * - `true` — mask anything that looks like a credential (name contains auth,
+   *   token, key, secret, sign, cookie, credential, password, session). Catches
+   *   headers nobody thought to list, including ones added later.
+   * - `string[]` — the same detection, plus these exact names.
+   * - `{ only: [...] }` — mask exactly these names and nothing else.
    */
-  redactHeaders?: string[] | boolean;
+  redactHeaders?: boolean | string[] | { only: string[] };
   /** Last chance to rewrite or drop a log. Return null to discard it. */
   beforeSend?: (log: RequestLog) => RequestLog | null;
 }
@@ -31,7 +35,7 @@ export interface ResolvedConfig {
   captureBody: boolean;
   maxBodySize: number;
   filter: (url: string, method: string) => boolean;
-  redactHeaders: string[] | boolean;
+  redactHeaders: boolean | string[] | { only: string[] };
   beforeSend: ((log: RequestLog) => RequestLog | null) | null;
 }
 

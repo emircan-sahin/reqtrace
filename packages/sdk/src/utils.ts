@@ -127,26 +127,62 @@ export async function readCappedText(response: Response, maxBytes: number): Prom
   return out;
 }
 
-/** Headers that carry credentials — including the proxy ones this SDK exists to track. */
+/**
+ * Header names always treated as credentials. Kept for exact-match use and for
+ * consumers composing their own list — but a fixed list goes stale the moment a
+ * service invents a new header, which is what CREDENTIAL_STEMS is for.
+ */
 export const DEFAULT_REDACTED_HEADERS = [
   'authorization',
   'proxy-authorization',
   'cookie',
   'set-cookie',
   'x-api-key',
+  'x-apikey',
+  'api-key',
+  'apikey',
+  'x-auth-token',
+  'x-access-token',
+  'x-csrf-token',
+  'x-session-token',
 ];
+
+/**
+ * Substrings that mark a header as carrying a secret. Matched anywhere in the
+ * name, so `x-apikey`, `Ok-Verify-Sign` and `x-fptoken` are all caught without
+ * anyone having to add them anywhere. Over-masking is the safe direction: the
+ * cost is an unreadable header, the cost of missing one is a leaked credential.
+ */
+export const CREDENTIAL_STEMS = [
+  'auth',
+  'token',
+  'key',
+  'secret',
+  'sign',
+  'cookie',
+  'credential',
+  'password',
+  'passwd',
+  'session',
+];
+
+/** True when a header name looks like it carries a credential. */
+export function looksLikeCredential(name: string): boolean {
+  const lower = name.toLowerCase();
+  return CREDENTIAL_STEMS.some((stem) => lower.includes(stem));
+}
 
 const REDACTED = '[redacted]';
 
 export function redactHeaderMap(
   headers: Record<string, string> | undefined,
-  names: string[],
+  shouldRedact: (name: string) => boolean,
 ): Record<string, string> | undefined {
   if (!headers) return headers;
 
   let result: Record<string, string> | undefined;
   for (const key of Object.keys(headers)) {
-    if (names.includes(key.toLowerCase())) {
+    if (shouldRedact(key)) {
       if (!result) result = { ...headers };
       result[key] = REDACTED;
     }

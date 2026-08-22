@@ -11,5 +11,12 @@ export type {
   LogHandler,
   StartHandler,
 } from './types.js';
-export { truncateBody, estimateSize, flattenHeaders } from './utils.js';
+export {
+  truncateBody,
+  estimateSize,
+  flattenHeaders,
+  looksLikeCredential,
+  DEFAULT_REDACTED_HEADERS,
+  CREDENTIAL_STEMS,
+} from './utils.js';
 export { createWsTransport, type WsTransport } from './transport.js';

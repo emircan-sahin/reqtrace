@@ -1,6 +1,6 @@
 import type { ReqtraceConfig, ResolvedConfig, RequestLog, RequestStart, LogHandler, StartHandler } from './types.js';
 import { createWsTransport, type WsTransport } from './transport.js';
-import { DEFAULT_REDACTED_HEADERS, redactHeaderMap } from './utils.js';
+import { looksLikeCredential, redactHeaderMap } from './utils.js';
 
 const DEFAULT_CONFIG: ResolvedConfig = {
   enabled: true,
@@ -12,6 +12,25 @@ const DEFAULT_CONFIG: ResolvedConfig = {
   redactHeaders: false,
   beforeSend: null,
 };
+
+/**
+ * An array extends the built-in detection rather than replacing it: a consumer
+ * naming one extra header should not silently lose coverage of authorization,
+ * and should not have to re-list the defaults every time the SDK learns a new one.
+ */
+function buildRedactor(
+  setting: true | string[] | { only: string[] },
+): (name: string) => boolean {
+  if (setting === true) return looksLikeCredential;
+
+  if (Array.isArray(setting)) {
+    const extra = new Set(setting.map((n) => n.toLowerCase()));
+    return (name) => looksLikeCredential(name) || extra.has(name.toLowerCase());
+  }
+
+  const only = new Set(setting.only.map((n) => n.toLowerCase()));
+  return (name) => only.has(name.toLowerCase());
+}
 
 export class ReqtraceCore {
   private config: ResolvedConfig;
@@ -51,14 +70,12 @@ export class ReqtraceCore {
     const { redactHeaders, beforeSend } = this.config;
     let result = log;
 
-    if (redactHeaders) {
-      const names = redactHeaders === true
-        ? DEFAULT_REDACTED_HEADERS
-        : redactHeaders.map((n) => n.toLowerCase());
+    if (redactHeaders !== false && redactHeaders !== undefined) {
+      const shouldRedact = buildRedactor(redactHeaders);
       result = {
         ...result,
-        request_headers: redactHeaderMap(result.request_headers, names) ?? {},
-        response_headers: redactHeaderMap(result.response_headers, names) ?? {},
+        request_headers: redactHeaderMap(result.request_headers, shouldRedact) ?? {},
+        response_headers: redactHeaderMap(result.response_headers, shouldRedact) ?? {},
       };
     }
 

@@ -75,24 +75,44 @@ const res = await fetch('https://api.example.com/users')
 | `maxBodySize` | `number` | `51200` | Max body size in bytes |
 | `enabled` | `boolean` | `true` | Enable/disable logging |
 | `filter` | `function` | `() => true` | Skip specific requests |
-| `redactHeaders` | `string[] \| boolean` | `false` | Mask header values before they leave the process |
+| `redactHeaders` | `boolean \| string[] \| { only }` | `false` | Mask header values before they leave the process |
 | `beforeSend` | `function` | — | Rewrite a log, or return `null` to drop it |
 
 ### Redacting credentials
 
 Every header is logged by default — the server is yours and so is the data. When
 the process handles credentials you would rather not persist (proxy
-subscriptions, third-party tokens), turn redaction on:
+subscriptions, exchange API keys, signing tokens), turn redaction on:
 
 ```ts
 const core = new ReqtraceCore({
   serverUrl: 'http://localhost:3100',
   apiKey: process.env.API_KEY,
-  // true masks authorization, proxy-authorization, cookie, set-cookie, x-api-key
   redactHeaders: true,
-  // or name your own: redactHeaders: ['x-internal-token']
 })
 ```
+
+`true` masks any header whose name contains `auth`, `token`, `key`, `secret`,
+`sign`, `cookie`, `credential`, `password` or `session`. That covers the ones no
+list would have predicted — `x-apikey`, `x-fptoken`, `Ok-Verify-Sign` — including
+headers a service adds after you wrote your config. Ordinary headers
+(`user-agent`, `content-type`, `accept`) stay readable.
+
+Need more than the built-in detection? An array **adds** to it:
+
+```ts
+// authorization, cookie, x-apikey … are still masked; x-tenant now is too
+redactHeaders: ['x-tenant']
+```
+
+Need less? `{ only }` masks exactly what you name and nothing else:
+
+```ts
+redactHeaders: { only: ['x-tenant'] }
+```
+
+`looksLikeCredential`, `CREDENTIAL_STEMS` and `DEFAULT_REDACTED_HEADERS` are
+exported if you want to reuse the detection elsewhere.
 
 `beforeSend` is the escape hatch for anything redaction cannot express:
 
