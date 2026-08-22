@@ -23,9 +23,11 @@ export const authPlugin = fp(async (app: FastifyInstance, opts: AuthPluginOption
     sign: { expiresIn: '7d' },
   });
   await app.register(rateLimit, {
-    max: 50,
+    max: 300,
     timeWindow: '1 minute',
-    allowList: ['/health', '/ws'],
+    // allowList entries are matched against the rate-limit key (the client IP),
+    // not the URL — the function form is the only way to exempt routes.
+    allowList: (request) => request.url === '/health' || request.url.startsWith('/ws'),
   });
 
   // REST hook: verify JWT signature + check token matches DB

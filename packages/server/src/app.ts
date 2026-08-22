@@ -26,7 +26,9 @@ export async function createApp(opts?: AppOptions) {
   const app = Fastify({ logger: opts?.logger ?? false });
 
   await app.register(cors, { origin: true, methods: ['GET', 'POST', 'DELETE', 'OPTIONS'] });
-  await app.register(websocket);
+  // ws defaults to a 100 MiB frame limit; a single oversized frame would be
+  // buffered whole and then JSON.parse'd into a second copy.
+  await app.register(websocket, { options: { maxPayload: 1024 * 1024 } });
 
   const store = opts?.store ?? new InMemoryStore();
   const broadcast = new BroadcastManager();
@@ -41,6 +43,8 @@ export async function createApp(opts?: AppOptions) {
       broadcast,
     });
   }
+
+  app.addHook('onClose', () => broadcast.close());
 
   app.register(wsRoute({ store, broadcast, pool, apiKey }));
   app.register(healthRoutes);

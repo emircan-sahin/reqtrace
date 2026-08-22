@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Pool } from 'pg';
 import type { LogStore } from '../types.js';
 import { WS_AUTH_FAILURE, type BroadcastManager } from '../ws/index.js';
+import { parseRequestLog, requestStartSchema } from '../schemas.js';
 
 interface WsRouteOptions {
   store: LogStore;
@@ -51,9 +52,17 @@ export function wsRoute(opts: WsRouteOptions) {
           const msg = JSON.parse(raw.toString());
 
           if (msg.type === 'request_start') {
-            broadcast.broadcast(msg);
+            const start = requestStartSchema.safeParse(msg);
+            if (!start.success) return;
+            broadcast.broadcast({ type: 'request_start', ...start.data });
           } else if (msg.type === 'request_end') {
-            const { type: _, ...log } = msg;
+            // Validate before it reaches the batch insert: one malformed row
+            // used to fail the whole INSERT and take valid logs down with it.
+            const log = parseRequestLog(msg);
+            if (!log) {
+              console.warn('[reqtrace] dropped malformed request_end message');
+              return;
+            }
             await store.add(log);
             const { request_headers, response_headers, request_body, response_body, ...summary } = log;
             broadcast.broadcast({ type: 'request_end', ...summary });
