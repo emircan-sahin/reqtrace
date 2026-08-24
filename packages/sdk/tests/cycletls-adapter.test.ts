@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { CycleTLSClient, CycleTLSResponse, CycleTLSRequestOptions } from 'cycletls';
-import { CycleTlsAdapter } from '../src/adapters/cycletls';
+import { CycleTlsAdapter, normalizeData } from '../src/adapters/cycletls';
 import { ReqtraceCore } from '../src/core';
 import type { RequestLog } from '../src/types';
 
@@ -351,5 +351,85 @@ describe('CycleTlsAdapter', () => {
 
       expect(handler).toHaveBeenCalledOnce();
     });
+  });
+
+  describe('Buffer response bodies', () => {
+    it('logs a Buffer body as readable text, not a byte array', async () => {
+      // What a caller gets when it asks CycleTLS for responseType: 'arraybuffer'
+      const body = '{"message":"success"}';
+      mockSuccess(client, Buffer.from(body, 'utf-8'));
+      adapter.install();
+
+      await client.get('https://api.example.com/data', { headers: {} });
+      await tick();
+
+      expect(logs[0].response_body).toBe(body);
+      expect(logs[0].response_body).not.toContain('"type":"Buffer"');
+    });
+
+    it('sizes a Buffer body by its real length', async () => {
+      const body = 'x'.repeat(500);
+      const response = createMockResponse(Buffer.from(body, 'utf-8'));
+      // Drop content-length so the size has to come from the body itself
+      delete (response.headers as Record<string, string>)['content-length'];
+      for (const method of HTTP_METHODS) {
+        (client as any)[method] = vi.fn(async () => response);
+      }
+      adapter.install();
+
+      await client.get('https://api.example.com/data', { headers: {} });
+      await tick();
+
+      // The byte-array form inflated this roughly sixfold
+      expect(logs[0].response_size_bytes).toBe(500);
+    });
+
+    it('summarizes a binary body instead of logging its bytes', async () => {
+      const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+      mockSuccess(client, png);
+      adapter.install();
+
+      await client.get('https://api.example.com/image.png', { headers: {} });
+      await tick();
+
+      expect(logs[0].response_body).toBe('[binary 8 bytes]');
+    });
+  });
+
+});
+
+describe('normalizeData', () => {
+  it('passes strings through untouched', () => {
+    expect(normalizeData('{"a":1}')).toBe('{"a":1}');
+  });
+
+  it('treats null and undefined as an empty body', () => {
+    expect(normalizeData(null)).toBe('');
+    expect(normalizeData(undefined)).toBe('');
+  });
+
+  it('decodes a Buffer as text instead of dumping its bytes', () => {
+    const body = '{"id":12345678901234567890,"s":"a   b"}';
+    expect(normalizeData(Buffer.from(body, 'utf-8'))).toBe(body);
+  });
+
+  it('decodes ArrayBuffer and typed-array views too', () => {
+    const buf = Buffer.from('hello', 'utf-8');
+    expect(normalizeData(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength))).toBe('hello');
+    expect(normalizeData(new Uint8Array(buf))).toBe('hello');
+  });
+
+  it('keeps multibyte text intact', () => {
+    const body = '{"city":"Istanbul","emoji":"rocket"}';
+    expect(normalizeData(Buffer.from(body, 'utf-8'))).toBe(body);
+  });
+
+  it('summarizes genuinely binary bytes rather than logging them', () => {
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(normalizeData(png)).toBe('[binary 8 bytes]');
+  });
+
+  it('still serializes plain objects', () => {
+    expect(normalizeData({ ok: true })).toBe('{"ok":true}');
   });
 });

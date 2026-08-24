@@ -12,6 +12,38 @@ type CycleTlsMethod = (url: string, options: CycleTLSRequestOptions) => Promise<
 
 const HTTP_METHODS = ['get', 'post', 'put', 'delete', 'patch', 'head', 'options', 'trace', 'connect'] as const;
 
+/**
+ * Turn a CycleTLS response body into something worth logging.
+ *
+ * CycleTLS hands back whatever its `responseType` produced. Callers that ask for
+ * `arraybuffer` — which is what a client does when it wants the bytes verbatim — get a
+ * Buffer, and `JSON.stringify` turns that into `{"type":"Buffer","data":[123,34,...]}`.
+ * That is unreadable in the dashboard, and it inflates the payload roughly sixfold, so
+ * `maxBodySize` truncates away most of the real body and `estimateSize` reports a size
+ * that has nothing to do with the response.
+ *
+ * Bytes are decoded as UTF-8 and kept only if they survive the round trip; anything else
+ * is genuinely binary, where a byte array tells the reader nothing a length does not.
+ */
+export function normalizeData(raw: unknown): string {
+  if (raw == null) return '';
+  if (typeof raw === 'string') return raw;
+
+  const bytes = toBytes(raw);
+  if (!bytes) return JSON.stringify(raw);
+
+  const text = bytes.toString('utf-8');
+  return Buffer.from(text, 'utf-8').equals(bytes) ? text : `[binary ${bytes.length} bytes]`;
+}
+
+/** Any of the byte-ish shapes CycleTLS can return, as a Buffer. Null if it is not one. */
+function toBytes(raw: unknown): Buffer | null {
+  if (Buffer.isBuffer(raw)) return raw;
+  if (raw instanceof ArrayBuffer) return Buffer.from(raw);
+  if (ArrayBuffer.isView(raw)) return Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+  return null;
+}
+
 export class CycleTlsAdapter implements ReqtraceAdapter {
   private core: ReqtraceCore;
   private client: CycleTLSClient;
@@ -77,12 +109,8 @@ export class CycleTlsAdapter implements ReqtraceAdapter {
         setImmediate(() => {
          try {
           // Normalized here, not on the caller's await path: for large payloads
-          // this JSON.stringify used to run even when captureBody was off.
-          const dataStr = rawData == null
-            ? ''
-            : typeof rawData === 'string'
-              ? rawData
-              : JSON.stringify(rawData);
+          // this conversion used to run even when captureBody was off.
+          const dataStr = normalizeData(rawData);
 
           const duration_ms = endTime - start;
           const requestHeaders = flattenHeaders(options?.headers);
